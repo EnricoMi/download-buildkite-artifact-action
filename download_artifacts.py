@@ -135,4 +135,9 @@ if __name__ == "__main__":
     check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
     check_var(commit, 'COMMIT', 'Commit')
 
+    logging.info('repo={}'.format(github_repo))
+    logging.info('owner={}'.format(github_repo_owner))
+    logging.info('commit={}'.format(commit))
+    logging.info('output={}'.format(output_path))
+
     main(github_token, github_repo, github_repo_owner, buildkite_token, commit, output_path)
