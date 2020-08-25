@@ -22,11 +22,11 @@ from typing import List, Tuple, Dict
 POLL_SLEEP = 30
 
 
-def get_buildkite_builds_from_github(token: str, commit: str) -> List[Tuple[str, str]]:
+def get_buildkite_builds_from_github(token: str, repo: str, owner: str, commit: str) -> List[Tuple[str, str]]:
     from github import Github
 
     gh = Github(token)
-    commit = gh.get_user('EnricoMi').get_repo('python').get_commit(commit)
+    commit = gh.get_user(owner).get_repo(repo).get_commit(commit)
     status = commit.get_combined_status()
     logging.info('found {} statuses'.format(status.total_count))
     for s in status.statuses:
@@ -71,7 +71,7 @@ def download_artifacts(token: str, org: str, pipeline: str, build: int, artifact
     root_path = os.path.abspath(path)
 
     def download_artifact(artifact_id: str, job_id: str, file_path: str):
-        local_path = os.path.abspath(os.path.join(path, file_path))
+        local_path = os.path.abspath(os.path.join(path, job_id, file_path))
         if not local_path.startswith(root_path):
             raise RuntimeError("cannot write artifact to '{}' as output path is '{}'".format(local_path, root_path))
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -88,9 +88,10 @@ def download_artifacts(token: str, org: str, pipeline: str, build: int, artifact
                  for artifact in artifacts])
 
 
-def main(github_token: str, buildkite_token: str, commit: str, output_path: str):
+def main(github_token: str, repo: str, repo_owner: str,
+         buildkite_token: str, commit: str, output_path: str):
     while True:
-        buildkite_builds = get_buildkite_builds_from_github(github_token, commit)
+        buildkite_builds = get_buildkite_builds_from_github(github_token, repo, repo_owner, commit)
         if len(buildkite_builds) > 0 and \
                 len([1 for state, url in buildkite_builds if state == 'pending']) == 0:
             break
@@ -114,20 +115,24 @@ if __name__ == "__main__":
     logger = logging.getLogger()
     logger.level = logging.getLevelName(log_level)
 
-    github_token = os.environ.get('INPUT_GITHUB_TOKEN') or os.environ.get('GITHUB_TOKEN')
-    buildkite_token = os.environ.get('INPUT_BUILDKITE_TOKEN') or os.environ.get('BUILDKITE_TOKEN')
-    commit = os.environ.get('INPUT_COMMIT') or os.environ.get('COMMIT') or os.environ.get('GITHUB_SHA')
-    output_path = os.environ.get('INPUT_OUTPUT_PATH') or os.environ.get('OUTPUT_PATH') or '.'
+    def get_var(name: str) -> str:
+        return os.environ.get('INPUT_{}'.format(name)) or os.environ.get(name)
 
-    if github_token is None:
-        raise RuntimeError('GitHub token must be provided via action input or environment variable GITHUB_TOKEN')
-    if buildkite_token is None:
-        raise RuntimeError('BuildKite token must be provided via action input or environment variable BUILDKITE_TOKEN')
-    if commit is None:
-        raise RuntimeError('commit must be provided via action input or environment variable COMMIT')
+    github_token = get_var('GITHUB_TOKEN')
+    github_repo = get_var('GITHUB_REPOSITORY')
+    github_repo_owner = get_var('GITHUB_REPOSITORY_OWNER')
+    buildkite_token = get_var('BUILDKITE_TOKEN')
+    commit = get_var('COMMIT') or os.environ.get('GITHUB_SHA')
+    output_path = get_var('OUTPUT_PATH') or '.'
 
-    from github import Github
-    gh = Github(github_token)
-    logging.debug('GitHub: {}'.format(gh.get_rate_limit()))
+    def check_var(var: str, name: str, label: str) -> None:
+        if var is None:
+            raise RuntimeError('{} must be provided via action input or environment variable {}'.format(label, name))
 
-    main(github_token, buildkite_token, commit, output_path)
+    check_var(github_token, 'GITHUB_TOKEN', 'GitHub token')
+    check_var(github_repo, 'GITHUB_REPOSITORY', 'GitHub repository')
+    check_var(github_repo_owner, 'GITHUB_REPOSITORY_OWNER', 'GitHub repository owner')
+    check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
+    check_var(commit, 'COMMIT', 'Commit')
+
+    main(github_token, github_repo, github_repo_owner, buildkite_token, commit, output_path)

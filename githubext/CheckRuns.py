@@ -144,7 +144,6 @@ def get_check_runs(self: Commit):
     headers, data = self._requester.requestJsonAndCheck(
         'GET', self.url + '/check-runs', headers={'Accept': 'application/vnd.github.antiope-preview+json'}
     )
-    print(data)
     return CheckRuns(self._requester, headers, data, completed=True)
 
 
