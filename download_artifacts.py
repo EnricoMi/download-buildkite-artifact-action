@@ -110,6 +110,10 @@ def main(github_token: str, repo: str, repo_owner: str,
         download_artifacts(buildkite_token, org, pipeline, build, artifacts, output_path)
 
 
+def get_repo_name(repo: str) -> str:
+    return repo.split('/', 1)[1]
+
+
 if __name__ == "__main__":
     log_level = os.environ.get('LOG_LEVEL') or 'INFO'
     logger = logging.getLogger()
@@ -119,7 +123,7 @@ if __name__ == "__main__":
         return os.environ.get('INPUT_{}'.format(name)) or os.environ.get(name)
 
     github_token = get_var('GITHUB_TOKEN')
-    github_repo = get_var('GITHUB_REPOSITORY')
+    github_repo = get_repo_name(get_var('GITHUB_REPOSITORY'))
     github_repo_owner = get_var('GITHUB_REPOSITORY_OWNER')
     buildkite_token = get_var('BUILDKITE_TOKEN')
     commit = get_var('COMMIT') or os.environ.get('GITHUB_SHA')
