@@ -14,8 +14,12 @@
 
 import logging
 import os
+import time
 
 from typing import List, Tuple, Dict
+
+
+POLL_SLEEP = 30
 
 
 def get_buildkite_builds_from_github(token: str, commit: str) -> List[Tuple[str, str]]:
@@ -85,10 +89,23 @@ def download_artifacts(token: str, org: str, pipeline: str, build: int, artifact
 
 
 def main(github_token: str, buildkite_token: str, commit: str, output_path: str):
-    buildkite_builds = get_buildkite_builds_from_github(github_token, commit)
+    while True:
+        buildkite_builds = get_buildkite_builds_from_github(github_token, commit)
+        if len(buildkite_builds) > 0 and \
+                len([1 for state, url in buildkite_builds if state == 'pending']) == 0:
+            break
+        time.sleep(POLL_SLEEP)
+
     for state, url in buildkite_builds:
         org, pipeline, build = parse_buildkite_url(url)
-        artifacts = get_build_artifacts(buildkite_token, org, pipeline, build)
+
+        while True:
+            artifacts = get_build_artifacts(buildkite_token, org, pipeline, build)
+            if len(artifacts) > 0 and \
+                    len([1 for artifact in artifacts if artifact['state'] == 'new']) == 0:
+                break
+            time.sleep(POLL_SLEEP)
+
         download_artifacts(buildkite_token, org, pipeline, build, artifacts, output_path)
 
 
@@ -108,5 +125,9 @@ if __name__ == "__main__":
         raise RuntimeError('BuildKite token must be provided via environment variable BUILDKITE_API_ACCESS_TOKEN')
     if commit is None:
         raise RuntimeError('commit must be provided via environment variable COMMIT')
+
+    from github import Github
+    gh = Github(github_token)
+    logging.debug('GitHub: {}'.format(gh.get_rate_limit()))
 
     main(github_token, buildkite_token, commit, output_path)
