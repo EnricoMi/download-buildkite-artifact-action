@@ -114,17 +114,17 @@ if __name__ == "__main__":
     logger = logging.getLogger()
     logger.level = logging.getLevelName(log_level)
 
-    github_token = os.environ.get('GITHUB_API_ACCESS_TOKEN')
-    buildkite_token = os.environ.get('BUILDKITE_API_ACCESS_TOKEN')
-    commit = os.environ.get('COMMIT') or os.environ.get('GITHUB_SHA')
-    output_path = os.environ.get('OUTPUT_PATH') or '.'
+    github_token = os.environ.get('INPUT_GITHUB_TOKEN') or os.environ.get('GITHUB_TOKEN')
+    buildkite_token = os.environ.get('INPUT_BUILDKITE_TOKEN') or os.environ.get('BUILDKITE_TOKEN')
+    commit = os.environ.get('INPUT_COMMIT') or os.environ.get('COMMIT') or os.environ.get('GITHUB_SHA')
+    output_path = os.environ.get('INPUT_OUTPUT_PATH') or os.environ.get('OUTPUT_PATH') or '.'
 
     if github_token is None:
-        raise RuntimeError('GitHub token must be provided via environment variable GITHUB_API_ACCESS_TOKEN')
+        raise RuntimeError('GitHub token must be provided via action input or environment variable GITHUB_TOKEN')
     if buildkite_token is None:
-        raise RuntimeError('BuildKite token must be provided via environment variable BUILDKITE_API_ACCESS_TOKEN')
+        raise RuntimeError('BuildKite token must be provided via action input or environment variable BUILDKITE_TOKEN')
     if commit is None:
-        raise RuntimeError('commit must be provided via environment variable COMMIT')
+        raise RuntimeError('commit must be provided via action input or environment variable COMMIT')
 
     from github import Github
     gh = Github(github_token)
