@@ -1,0 +1,21 @@
+name: 'Download Buildkite Artifact'
+author: 'EnricoMi'
+description: 'A GitHub Action to download artifacts from a Buildkite pipeline'
+inputs:
+  buildkite_token:
+    description: 'Buildkite API Access Token'
+    required: true
+  output_path:
+    description: 'Path were downloaded artifacts are stored'
+    required: false
+    default: '.'
+  log_level:
+    description: 'Action logging level'
+    required: false
+    default: 'INFO'
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+branding:
+  icon: 'download-cloud'
+  color: 'green'
