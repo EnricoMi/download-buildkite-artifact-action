@@ -19,7 +19,7 @@ import time
 from typing import List, Tuple, Dict
 
 
-logger = logging.getLogger('buildkite-download-artifact')
+logger = logging.getLogger('download-buildkite-artifact')
 
 INITIAL_DELAY = 5  # action initially delays accessing GitHub API for this number of seconds
 POLL_SLEEP = 30    # action polls GitHub API and Buildkite API every this number of seconds

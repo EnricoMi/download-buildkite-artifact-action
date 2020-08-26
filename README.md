@@ -1,7 +1,7 @@
 # GitHub Action to download Buildkite Artifacts
 
 This [GitHub Action](https://github.com/actions) downloads artifacts from
-a [Buildkite](https://buildkite.com/) build that builds the respective commit.
+a [Buildkite](https://buildkite.com/) pipeline that builds the respective commit.
 
 The action picks up a Buildkite build from the commit status that is set by
 [Buildkite integration with Github](https://buildkite.com/docs/integrations/github#connecting-buildkite-and-github),
@@ -16,7 +16,7 @@ You can add this action to your GitHub workflow and configure it as follows:
 
 ```yaml
 - name: Buildkite Artifacts
-  uses: EnricoMi/buildkite-download-artifact-action@v1.0
+  uses: EnricoMi/download-buildkite-artifact-action@v1.0
   with:
     github_token: ${{ secrets.GITHUB_TOKEN }}
     buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
