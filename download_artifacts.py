@@ -22,11 +22,11 @@ from typing import List, Tuple, Dict
 POLL_SLEEP = 30
 
 
-def get_buildkite_builds_from_github(token: str, repo: str, owner: str, commit: str) -> List[Tuple[str, str]]:
+def get_buildkite_builds_from_github(token: str, repo: str, commit: str) -> List[Tuple[str, str]]:
     from github import Github
 
     gh = Github(token)
-    commit = gh.get_user(owner).get_repo(repo).get_commit(commit)
+    commit = gh.get_repo(repo).get_commit(commit)
     status = commit.get_combined_status()
     logging.info('found {} statuses'.format(status.total_count))
     for s in status.statuses:
@@ -88,10 +88,9 @@ def download_artifacts(token: str, org: str, pipeline: str, build: int, artifact
                  for artifact in artifacts])
 
 
-def main(github_token: str, repo: str, repo_owner: str,
-         buildkite_token: str, commit: str, output_path: str):
+def main(github_token: str, repo: str, buildkite_token: str, commit: str, output_path: str):
     while True:
-        buildkite_builds = get_buildkite_builds_from_github(github_token, repo, repo_owner, commit)
+        buildkite_builds = get_buildkite_builds_from_github(github_token, repo, commit)
         if len(buildkite_builds) > 0 and \
                 len([1 for state, url in buildkite_builds if state == 'pending']) == 0:
             break
@@ -110,10 +109,6 @@ def main(github_token: str, repo: str, repo_owner: str,
         download_artifacts(buildkite_token, org, pipeline, build, artifacts, output_path)
 
 
-def get_repo_name(repo: str) -> str:
-    return repo.split('/', 1)[1]
-
-
 if __name__ == "__main__":
     log_level = os.environ.get('LOG_LEVEL') or 'INFO'
     logger = logging.getLogger()
@@ -123,8 +118,7 @@ if __name__ == "__main__":
         return os.environ.get('INPUT_{}'.format(name)) or os.environ.get(name)
 
     github_token = get_var('GITHUB_TOKEN')
-    github_repo = get_repo_name(get_var('GITHUB_REPOSITORY'))
-    github_repo_owner = get_var('GITHUB_REPOSITORY_OWNER')
+    github_repo = get_var('GITHUB_REPOSITORY')
     buildkite_token = get_var('BUILDKITE_TOKEN')
     commit = get_var('COMMIT') or os.environ.get('GITHUB_SHA')
     output_path = get_var('OUTPUT_PATH') or '.'
@@ -135,13 +129,11 @@ if __name__ == "__main__":
 
     check_var(github_token, 'GITHUB_TOKEN', 'GitHub token')
     check_var(github_repo, 'GITHUB_REPOSITORY', 'GitHub repository')
-    check_var(github_repo_owner, 'GITHUB_REPOSITORY_OWNER', 'GitHub repository owner')
     check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
     check_var(commit, 'COMMIT', 'Commit')
 
     logging.info('repo={}'.format(github_repo))
-    logging.info('owner={}'.format(github_repo_owner))
     logging.info('commit={}'.format(commit))
     logging.info('output={}'.format(output_path))
 
-    main(github_token, github_repo, github_repo_owner, buildkite_token, commit, output_path)
+    main(github_token, github_repo, buildkite_token, commit, output_path)
