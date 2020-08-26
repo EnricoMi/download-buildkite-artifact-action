@@ -21,7 +21,8 @@ from typing import List, Tuple, Dict
 
 logger = logging.getLogger('buildkite-download-artifact')
 
-POLL_SLEEP = 30
+INITIAL_DELAY = 5  # action initially delays accessing GitHub API for this number of seconds
+POLL_SLEEP = 30    # action polls GitHub API and Buildkite API every this number of seconds
 
 
 def get_buildkite_builds_from_github(token: str, repo: str, commit: str) -> List[Tuple[str, str]]:
@@ -49,21 +50,30 @@ def parse_buildkite_url(url) -> (str, str, int):
     return None
 
 
-def get_build_artifacts(token: str, org: str, pipeline: str, build: int) -> List[Dict]:
+def get_build(token: str, org: str, pipeline: str, build_number: int) -> Dict:
     from pybuildkite.buildkite import Buildkite
 
     buildkite = Buildkite()
     buildkite.set_access_token(token)
 
-    artifacts = buildkite.artifacts().list_artifacts_for_build(org, pipeline, build)
+    return buildkite.builds().get_build_by_number(org, pipeline, build_number)
+
+
+def get_build_artifacts(token: str, org: str, pipeline: str, build_number: int) -> List[Dict]:
+    from pybuildkite.buildkite import Buildkite
+
+    buildkite = Buildkite()
+    buildkite.set_access_token(token)
+
+    artifacts = buildkite.artifacts().list_artifacts_for_build(org, pipeline, build_number)
     logger.info('found {} artifacts'.format(len(artifacts)))
     for artifact in artifacts:
-        logger.debug(artifact)
+        logger.debug('{} artifact: {}'.format(artifact['state'], artifact))
 
     return artifacts
 
 
-def download_artifacts(token: str, org: str, pipeline: str, build: int, artifacts: List[Dict], path: str) -> List[str]:
+def download_artifacts(token: str, org: str, pipeline: str, build_number: int, artifacts: List[Dict], path: str) -> List[str]:
     from pybuildkite.buildkite import Buildkite
     from pybuildkiteext import artifacts as atf
 
@@ -78,37 +88,53 @@ def download_artifacts(token: str, org: str, pipeline: str, build: int, artifact
             raise RuntimeError("cannot write artifact to '{}' as output path is '{}'".format(local_path, root_path))
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-        artifact = buildkite.artifacts().download_artifact(org, pipeline, build, job_id, artifact_id)
+        artifact = buildkite.artifacts().download_artifact(org, pipeline, build_number, job_id, artifact_id)
 
-        logger.info('writing {}'.format(local_path))
+        logger.info('writing {} bytes to {}'.format(len(artifact), local_path))
         with open(local_path, 'bw') as f:
             f.write(artifact)
 
         return local_path
 
+    # download only the finished artifacts
     return list([download_artifact(artifact['id'], artifact['job_id'], artifact['path'])
-                 for artifact in artifacts])
+                 for artifact in artifacts if artifact['state'] == 'finished'])
 
 
 def main(github_token: str, repo: str, buildkite_token: str, commit: str, output_path: str):
+    # get the Buildkite context from github
+    logger.debug('waiting {}s before contacting GitHub API the first time'.format(INITIAL_DELAY))
+    time.sleep(INITIAL_DELAY)
     while True:
         buildkite_builds = get_buildkite_builds_from_github(github_token, repo, commit)
-        if len(buildkite_builds) > 0 and \
-                len([1 for state, url in buildkite_builds if state == 'pending']) == 0:
+        if len(buildkite_builds) > 0:
             break
+        logger.debug('waiting {}s before contacting GitHub API the next time'.format(POLL_SLEEP))
         time.sleep(POLL_SLEEP)
 
     for state, url in buildkite_builds:
-        org, pipeline, build = parse_buildkite_url(url)
+        org, pipeline, build_number = parse_buildkite_url(url)
 
+        # wait until the Buildkite build terminates
         while True:
-            artifacts = get_build_artifacts(buildkite_token, org, pipeline, build)
+            build = get_build(buildkite_token, org, pipeline, build_number)
+            if build['state'] not in ['running, scheduled, canceling']:
+                logger.info('build is in ''{}'' state'.format(build['state']))
+                break
+            logger.debug('waiting {}s before contacting Buildkite API the next time'.format(POLL_SLEEP))
+            time.sleep(POLL_SLEEP)
+
+        # wait until the Buildkite all artifacts terminate
+        while True:
+            artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
             if len(artifacts) > 0 and \
                     len([1 for artifact in artifacts if artifact['state'] == 'new']) == 0:
                 break
+            logger.debug('waiting {}s before contacting Buildkite API the next time'.format(POLL_SLEEP))
             time.sleep(POLL_SLEEP)
 
-        download_artifacts(buildkite_token, org, pipeline, build, artifacts, output_path)
+        # download the Buildkite artifacts
+        download_artifacts(buildkite_token, org, pipeline, build_number, artifacts, output_path)
 
 
 if __name__ == "__main__":
