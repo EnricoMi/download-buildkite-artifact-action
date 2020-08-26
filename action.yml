@@ -2,6 +2,9 @@ name: 'Download Buildkite Artifact'
 author: 'EnricoMi'
 description: 'A GitHub Action to download artifacts from a Buildkite pipeline'
 inputs:
+  github_token:
+    description: 'GitHub API Access Token'
+    required: true
   buildkite_token:
     description: 'Buildkite API Access Token'
     required: true
