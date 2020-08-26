@@ -129,8 +129,7 @@ def main(github_token: str, repo: str, buildkite_token: str, commit: str, output
         # wait until the Buildkite all artifacts terminate
         while True:
             artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
-            if len(artifacts) > 0 and \
-                    len([1 for artifact in artifacts if artifact['state'] == 'new']) == 0:
+            if len([artifact for artifact in artifacts if artifact['state'] == 'new']) == 0:
                 break
             logger.debug('waiting {}s before contacting Buildkite API again'.format(POLL_SLEEP))
             time.sleep(POLL_SLEEP)
