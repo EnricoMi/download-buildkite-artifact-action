@@ -19,6 +19,8 @@ import time
 from typing import List, Tuple, Dict
 
 
+logger = logging.getLogger('buildkite-download-artifact')
+
 POLL_SLEEP = 30
 
 
@@ -28,9 +30,9 @@ def get_buildkite_builds_from_github(token: str, repo: str, commit: str) -> List
     gh = Github(token)
     commit = gh.get_repo(repo).get_commit(commit)
     status = commit.get_combined_status()
-    logging.info('found {} statuses'.format(status.total_count))
+    logger.info('found {} statuses'.format(status.total_count))
     for s in status.statuses:
-        logging.debug('- {} - {}'.format(s, s.target_url))
+        logger.debug('{} - {}'.format(s, s.target_url))
 
     return list([(status.state, status.target_url)
                  for status in status.statuses
@@ -56,7 +58,7 @@ def get_build_artifacts(token: str, org: str, pipeline: str, build: int) -> List
     artifacts = buildkite.artifacts().list_artifacts_for_build(org, pipeline, build)
     logger.info('found {} artifacts'.format(len(artifacts)))
     for artifact in artifacts:
-        logging.debug('- {}'.format(artifact))
+        logger.debug(artifact)
 
     return artifacts
 
@@ -110,12 +112,13 @@ def main(github_token: str, repo: str, buildkite_token: str, commit: str, output
 
 
 if __name__ == "__main__":
-    log_level = os.environ.get('LOG_LEVEL') or 'INFO'
-    logger = logging.getLogger()
-    logger.level = logging.getLevelName(log_level)
-
     def get_var(name: str) -> str:
         return os.environ.get('INPUT_{}'.format(name)) or os.environ.get(name)
+
+    logging.root.level = logging.INFO
+    logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S %z')
+    log_level = get_var('LOG_LEVEL') or 'INFO'
+    logger.level = logging.getLevelName(log_level)
 
     github_token = get_var('GITHUB_TOKEN')
     github_repo = get_var('GITHUB_REPOSITORY')
@@ -131,9 +134,5 @@ if __name__ == "__main__":
     check_var(github_repo, 'GITHUB_REPOSITORY', 'GitHub repository')
     check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
     check_var(commit, 'COMMIT', 'Commit')
-
-    logging.info('repo={}'.format(github_repo))
-    logging.info('commit={}'.format(commit))
-    logging.info('output={}'.format(output_path))
 
     main(github_token, github_repo, buildkite_token, commit, output_path)
