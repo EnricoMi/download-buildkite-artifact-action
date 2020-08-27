@@ -8,6 +8,9 @@ inputs:
   buildkite_token:
     description: 'Buildkite API Access Token'
     required: true
+  buildkite_build_url:
+    description: 'Buildkite build url to downloaded artifacts from'
+    required: false
   output_path:
     description: 'Path were downloaded artifacts are stored'
     required: false

@@ -26,7 +26,7 @@ POLL_SLEEP = 30    # action polls GitHub API and Buildkite API every this number
 DEFAULT_GITHUB_BASE_URL = "https://api.github.com"
 
 
-def get_buildkite_builds_from_github(api_url: str, token: str, repo: str, commit: str) -> List[Tuple[str, str]]:
+def get_buildkite_builds_from_github(api_url: str, token: str, repo: str, commit: str) -> List[str]:
     from github import Github
 
     gh = Github(token, base_url=api_url)
@@ -36,7 +36,7 @@ def get_buildkite_builds_from_github(api_url: str, token: str, repo: str, commit
     for s in status.statuses:
         logger.debug('{} - {}'.format(s, s.target_url))
 
-    return list([(status.state, status.target_url)
+    return list([status.target_url
                  for status in status.statuses
                  if status.context.startswith('buildkite/')])
 
@@ -102,20 +102,23 @@ def download_artifacts(token: str, org: str, pipeline: str, build_number: int, a
                  for artifact in artifacts if artifact['state'] == 'finished'])
 
 
-def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str, commit: str, output_path: str):
-    # get the Buildkite context from github
-    logger.debug('waiting {}s before contacting GitHub API the first time'.format(INITIAL_DELAY))
-    time.sleep(INITIAL_DELAY)
-    while True:
-        buildkite_builds = get_buildkite_builds_from_github(github_api_url, github_token, repo, commit)
-        if len(buildkite_builds) > 0:
-            break
-        logger.debug('waiting {}s before contacting GitHub API again'.format(POLL_SLEEP))
-        time.sleep(POLL_SLEEP)
-    if not logger.isEnabledFor(logging.DEBUG):
-        logger.info('found {} status{}'.format(len(buildkite_builds), '' if len(buildkite_builds) == 1 else 'es'))
+def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str, buildkite_url: str, commit: str, output_path: str):
+    if buildkite_url is None:
+        # get the Buildkite url from github
+        logger.debug('waiting {}s before contacting GitHub API the first time'.format(INITIAL_DELAY))
+        time.sleep(INITIAL_DELAY)
+        while True:
+            buildkite_builds = get_buildkite_builds_from_github(github_api_url, github_token, repo, commit)
+            if len(buildkite_builds) > 0:
+                break
+            logger.debug('waiting {}s before contacting GitHub API again'.format(POLL_SLEEP))
+            time.sleep(POLL_SLEEP)
+        if not logger.isEnabledFor(logging.DEBUG):
+            logger.info('found {} status{}'.format(len(buildkite_builds), '' if len(buildkite_builds) == 1 else 'es'))
+    else:
+        buildkite_builds = [buildkite_url]
 
-    for state, url in buildkite_builds:
+    for url in buildkite_builds:
         org, pipeline, build_number = parse_buildkite_url(url)
 
         # wait until the Buildkite build terminates
@@ -171,6 +174,7 @@ if __name__ == "__main__":
     github_token = get_var('GITHUB_TOKEN')
     github_repo = get_var('GITHUB_REPOSITORY')
     buildkite_token = get_var('BUILDKITE_TOKEN')
+    buildkite_url = get_var('BUILDKITE_BUILD_URL')
     commit = get_var('COMMIT') or os.environ.get('GITHUB_SHA')
     output_path = get_var('OUTPUT_PATH') or '.'
 
@@ -183,4 +187,4 @@ if __name__ == "__main__":
     check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
     check_var(commit, 'COMMIT', 'Commit')
 
-    main(github_api_url, github_token, github_repo, buildkite_token, commit, output_path)
+    main(github_api_url, github_token, github_repo, buildkite_token, buildkite_url, commit, output_path)
