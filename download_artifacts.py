@@ -140,6 +140,20 @@ def main(github_token: str, repo: str, buildkite_token: str, commit: str, output
         download_artifacts(buildkite_token, org, pipeline, build_number, artifacts, output_path)
 
 
+def check_event_name(event: str = os.environ.get('GITHUB_EVENT_NAME')) -> None:
+    # only checked when run by GitHub Actions GitHub App
+    if os.environ.get('GITHUB_ACTIONS') is None:
+        logger.warning('action not running on GitHub, skipping event name check')
+        return
+
+    if event is None:
+        raise RuntimeError('No event name provided trough GITHUB_EVENT_NAME')
+
+    logger.debug('action triggered by ''{}'' event'.format(event))
+    if event != 'push':
+        raise RuntimeError('Unsupported event, only ''push'' is supported: {}'.format(event))
+
+
 if __name__ == "__main__":
     def get_var(name: str) -> str:
         return os.environ.get('INPUT_{}'.format(name)) or os.environ.get(name)
@@ -148,6 +162,9 @@ if __name__ == "__main__":
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)5s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S %z')
     log_level = get_var('LOG_LEVEL') or 'INFO'
     logger.level = logging.getLevelName(log_level)
+
+    # check event is supported
+    check_event_name()
 
     github_token = get_var('GITHUB_TOKEN')
     github_repo = get_var('GITHUB_REPOSITORY')
