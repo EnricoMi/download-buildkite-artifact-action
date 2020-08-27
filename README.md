@@ -24,7 +24,8 @@ You can add this action to your GitHub workflow and configure it as follows:
     log_level: DEBUG
 ```
 
-The configuration variables can be provided via `with` or `env`, whatever you prefer. Variable names are case-insensitive.
+**Note:** The action can only be used on `push` events.
+
 The `output_path` and `log_level` variables are optional. Their default values are `.` (current directory) and `INFO`, respectively. The Python logging module defines the [available log levels](https://docs.python.org/3/library/logging.html#logging-levels).
 
 You have to provide a [Buildkite API Access Token](https://buildkite.com/docs/apis/managing-api-tokens) via `buildkite_token` to be stored in your [GitHub secrets](https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets).
