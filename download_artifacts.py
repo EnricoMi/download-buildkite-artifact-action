@@ -23,12 +23,13 @@ logger = logging.getLogger('download-buildkite-artifact')
 
 INITIAL_DELAY = 5  # action initially delays accessing GitHub API for this number of seconds
 POLL_SLEEP = 30    # action polls GitHub API and Buildkite API every this number of seconds
+DEFAULT_GITHUB_BASE_URL = "https://api.github.com"
 
 
-def get_buildkite_builds_from_github(token: str, repo: str, commit: str) -> List[Tuple[str, str]]:
+def get_buildkite_builds_from_github(api_url: str, token: str, repo: str, commit: str) -> List[Tuple[str, str]]:
     from github import Github
 
-    gh = Github(token)
+    gh = Github(token, base_url=api_url)
     commit = gh.get_repo(repo).get_commit(commit)
     status = commit.get_combined_status()
     logger.debug('found {} status{}:'.format(status.total_count, '' if status.total_count == 1 else 'es'))
@@ -101,12 +102,12 @@ def download_artifacts(token: str, org: str, pipeline: str, build_number: int, a
                  for artifact in artifacts if artifact['state'] == 'finished'])
 
 
-def main(github_token: str, repo: str, buildkite_token: str, commit: str, output_path: str):
+def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str, commit: str, output_path: str):
     # get the Buildkite context from github
     logger.debug('waiting {}s before contacting GitHub API the first time'.format(INITIAL_DELAY))
     time.sleep(INITIAL_DELAY)
     while True:
-        buildkite_builds = get_buildkite_builds_from_github(github_token, repo, commit)
+        buildkite_builds = get_buildkite_builds_from_github(github_api_url, github_token, repo, commit)
         if len(buildkite_builds) > 0:
             break
         logger.debug('waiting {}s before contacting GitHub API again'.format(POLL_SLEEP))
@@ -166,6 +167,7 @@ if __name__ == "__main__":
     # check event is supported
     check_event_name()
 
+    github_api_url = os.environ.get('GITHUB_API_URL') or DEFAULT_GITHUB_BASE_URL
     github_token = get_var('GITHUB_TOKEN')
     github_repo = get_var('GITHUB_REPOSITORY')
     buildkite_token = get_var('BUILDKITE_TOKEN')
@@ -181,4 +183,4 @@ if __name__ == "__main__":
     check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
     check_var(commit, 'COMMIT', 'Commit')
 
-    main(github_token, github_repo, buildkite_token, commit, output_path)
+    main(github_api_url, github_token, github_repo, buildkite_token, commit, output_path)
