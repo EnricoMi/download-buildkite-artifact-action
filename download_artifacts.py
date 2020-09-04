@@ -14,7 +14,9 @@
 
 import logging
 import os
+import re
 import time
+from collections import defaultdict, Counter
 
 from typing import List, Tuple, Dict
 
@@ -74,7 +76,27 @@ def get_build_artifacts(token: str, org: str, pipeline: str, build_number: int) 
     return artifacts
 
 
-def download_artifacts(token: str, org: str, pipeline: str, build_number: int, artifacts: List[Dict], path: str) -> List[str]:
+def make_path_safe(string: str) -> str:
+    safe_characters = "".join(c if c.isalnum() or c in ['-', '_'] else '-' for c in string).strip()
+    reduced = safe_characters
+    for pattern, repl in [('-+', '-'), ('^-+', ''), ('-+$', '')]:
+        reduced = re.sub(pattern, repl, reduced)
+    return reduced
+
+
+def make_dict_path_safe(mapping: Dict[str, str]) -> Dict[str, str]:
+    counts = Counter()
+    safe_dict = dict()
+    for id, name in mapping.items():
+        safe_name = make_path_safe(name)
+        counts[safe_name] += 1
+        count = counts[safe_name]
+        safe_dict[id] = safe_name if count == 1 else '{}_{}'.format(safe_name, count)
+    return safe_dict
+
+
+def download_artifacts(token: str, org: str, pipeline: str, build_number: int, artifacts: List[Dict],
+                       path_safe_job_names: Dict[str, str], path: str) -> List[str]:
     from pybuildkite.buildkite import Buildkite
     from pybuildkiteext import artifacts as atf
 
@@ -84,7 +106,8 @@ def download_artifacts(token: str, org: str, pipeline: str, build_number: int, a
     root_path = os.path.abspath(path)
 
     def download_artifact(artifact_id: str, job_id: str, file_path: str):
-        local_path = os.path.abspath(os.path.join(path, job_id, file_path))
+        path_safe_job_name = path_safe_job_names.get(job_id, job_id)
+        local_path = os.path.abspath(os.path.join(path, path_safe_job_name, file_path))
         if not local_path.startswith(root_path):
             raise RuntimeError("cannot write artifact to '{}' as output path is '{}'".format(local_path, root_path))
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
@@ -130,6 +153,12 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
             logger.debug('waiting {}s before contacting Buildkite API again'.format(POLL_SLEEP))
             time.sleep(POLL_SLEEP)
 
+        # get a job-id -> name mapping from build
+        job_names = dict([(job.get('id'), job.get('name'))
+                          for job in build.get('jobs', [])
+                          if 'name' in job])
+        path_safe_job_names = make_dict_path_safe(job_names)
+
         # wait until the Buildkite all artifacts terminate
         while True:
             artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
@@ -141,7 +170,7 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
             logger.info('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
 
         # download the Buildkite artifacts
-        download_artifacts(buildkite_token, org, pipeline, build_number, artifacts, output_path)
+        download_artifacts(buildkite_token, org, pipeline, build_number, artifacts, path_safe_job_names, output_path)
 
 
 def check_event_name(event: str = os.environ.get('GITHUB_EVENT_NAME')) -> None:

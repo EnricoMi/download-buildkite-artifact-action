@@ -33,10 +33,10 @@ This Buildkite token requires `read_artifacts` and `read_builds` scopes:
 
 ![Buildkite token scopes](buildkite-token-scopes.png)
 
-Artifacts are stored under the following path: `{output_path}/{artifact_id}/{artifact_path}`
+Artifacts are stored under the following path: `{output_path}/{job_name}/{artifact_path}`
 
 - The `output_path` is a configured above or defaults to the current directory.
-- The `artifact_id` avoids conflicts between artifacts that have the same `artifact_path` in different builds.
+- The `job_name` avoids conflicts between artifacts that have the same `artifact_path` in different jobs.
 - The `artifact_path` is the path and filename for the artifact as displayed on the Buildkite build page:
 
 ![Buildkite artifacts](buildkite-artifact.png)
