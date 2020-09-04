@@ -16,7 +16,7 @@ You can add this action to your GitHub workflow and configure it as follows:
 
 ```yaml
 - name: Buildkite Artifacts
-  uses: EnricoMi/download-buildkite-artifact-action@v1.2
+  uses: EnricoMi/download-buildkite-artifact-action@v1.3
   with:
     github_token: ${{ secrets.GITHUB_TOKEN }}
     buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
