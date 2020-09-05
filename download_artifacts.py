@@ -81,10 +81,6 @@ def get_build_artifacts(token: str, org: str, pipeline: str, build_number: int) 
         if page:
             logger.debug('fetching page {} of artifacts'.format(page))
 
-    logger.debug('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
-    for artifact in artifacts:
-        logger.debug('{} artifact: {}'.format(artifact.get('state'), artifact))
-
     return artifacts
 
 
@@ -180,12 +176,19 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
         # wait until the Buildkite all artifacts terminate
         while True:
             artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
-            if len([artifact for artifact in artifacts if artifact['state'] == 'new']) == 0:
+            new_artifacts = [artifact for artifact in artifacts if artifact['state'] == 'new']
+            if not any(new_artifacts):
                 break
+
+            logger.debug('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
+            logger.debug('{} artifacts still in new state'.format(len(new_artifacts)))
+            for artifact in new_artifacts:
+                logger.debug('new artifact: {}'.format(artifact))
+
             logger.debug('waiting {}s before contacting Buildkite API again'.format(POLL_SLEEP))
             time.sleep(POLL_SLEEP)
-        if not logger.isEnabledFor(logging.DEBUG):
-            logger.info('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
+
+        logger.info('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
 
         # download the Buildkite artifacts
         download_artifacts(buildkite_token, org, pipeline, build_number, artifacts, path_safe_job_names, output_path)
