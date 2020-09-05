@@ -180,13 +180,17 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
         # wait until the Buildkite all artifacts terminate
         while True:
             artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
-            if not any([artifact for artifact in artifacts if artifact['state'] == 'new']):
+            new_artifacts = [artifact for artifact in artifacts if artifact['state'] == 'new']
+            if not any(new_artifacts):
                 break
-            logger.debug('{} artifacts caused retry'.format(len([artifact for artifact in artifacts if artifact['state'] == 'new'])))
-            for artifact in [artifact for artifact in artifacts if artifact['state'] == 'new']:
-                logger.debug('artifact caused retry: {} {}'.format(artifact['state'] == 'new', artifact))
+
+            logger.debug('{} artifacts still in new state'.format(len(new_artifacts)))
+            for artifact in new_artifacts:
+                logger.debug('new artifact: {}'.format(artifact))
+
             logger.debug('waiting {}s before contacting Buildkite API again'.format(POLL_SLEEP))
             time.sleep(POLL_SLEEP)
+
         if not logger.isEnabledFor(logging.DEBUG):
             logger.info('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
 
