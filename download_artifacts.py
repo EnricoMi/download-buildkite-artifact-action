@@ -182,6 +182,7 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
             artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
             if any([artifact for artifact in artifacts if artifact['state'] == 'new']):
                 break
+            logger.debug('{} artifacts caused retry'.format(len([artifact for artifact in artifacts if artifact['state'] == 'new'])))
             for artifact in [artifact for artifact in artifacts if artifact['state'] == 'new']:
                 logger.debug('artifact caused retry: {} {}'.format(artifact['state'] == 'new', artifact))
             logger.debug('waiting {}s before contacting Buildkite API again'.format(POLL_SLEEP))
