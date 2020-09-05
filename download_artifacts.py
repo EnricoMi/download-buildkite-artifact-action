@@ -33,6 +33,7 @@ logger = logging.getLogger('download-buildkite-artifact')
 
 INITIAL_DELAY = 5  # action initially delays accessing GitHub API for this number of seconds
 POLL_SLEEP = 30    # action polls GitHub API and Buildkite API every this number of seconds
+WAIT_ON_GITHUB_CHECK = 300  # seconds the action waits for a Buildkite check to appear on the commit
 DEFAULT_GITHUB_BASE_URL = "https://api.github.com"
 
 
@@ -137,13 +138,22 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
     if buildkite_url is None:
         # get the Buildkite url from github
         logger.debug('waiting {}s before contacting GitHub API the first time'.format(INITIAL_DELAY))
+
+        start = time.time()
         time.sleep(INITIAL_DELAY)
         while True:
             buildkite_builds = get_buildkite_builds_from_github(github_api_url, github_token, repo, commit)
             if len(buildkite_builds) > 0:
                 break
+
+            if time.time() - start >= WAIT_ON_GITHUB_CHECK:
+                logger.warning('waited {} seconds for a BuildKite check to appear on commit {}, '
+                               'giving up'.format(WAIT_ON_GITHUB_CHECK, commit))
+                return
+
             logger.debug('waiting {}s before contacting GitHub API again'.format(POLL_SLEEP))
             time.sleep(POLL_SLEEP)
+
         if not logger.isEnabledFor(logging.DEBUG):
             logger.info('found {} status{}'.format(len(buildkite_builds), '' if len(buildkite_builds) == 1 else 'es'))
     else:
