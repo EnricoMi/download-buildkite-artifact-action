@@ -16,9 +16,17 @@ import logging
 import os
 import re
 import time
-from collections import defaultdict, Counter
+from collections import Counter
+from typing import List, Dict
 
-from typing import List, Tuple, Dict
+from github import Github
+from pybuildkite.buildkite import Buildkite
+
+from pybuildkiteext import artifacts as atf
+
+# to prevent pybuildkiteext import to be auto-removed
+if getattr(atf.Artifacts, 'download_artifact') is None:
+    raise RuntimeError('patching pybuildkite Artifacts failed')
 
 
 logger = logging.getLogger('download-buildkite-artifact')
@@ -29,8 +37,6 @@ DEFAULT_GITHUB_BASE_URL = "https://api.github.com"
 
 
 def get_buildkite_builds_from_github(api_url: str, token: str, repo: str, commit: str) -> List[str]:
-    from github import Github
-
     gh = Github(token, base_url=api_url)
     commit = gh.get_repo(repo).get_commit(commit)
     status = commit.get_combined_status()
@@ -44,8 +50,6 @@ def get_buildkite_builds_from_github(api_url: str, token: str, repo: str, commit
 
 
 def parse_buildkite_url(url) -> (str, str, int):
-    import re
-
     m = re.match('^http[s]?://buildkite.com/([^/]+)/([^/]+)/builds/([0-9]+)', url)
     if m:
         return m.group(1), m.group(2), int(m.group(3))
@@ -54,8 +58,6 @@ def parse_buildkite_url(url) -> (str, str, int):
 
 
 def get_build(token: str, org: str, pipeline: str, build_number: int) -> Dict:
-    from pybuildkite.buildkite import Buildkite
-
     buildkite = Buildkite()
     buildkite.set_access_token(token)
 
@@ -63,15 +65,24 @@ def get_build(token: str, org: str, pipeline: str, build_number: int) -> Dict:
 
 
 def get_build_artifacts(token: str, org: str, pipeline: str, build_number: int) -> List[Dict]:
-    from pybuildkite.buildkite import Buildkite
-
     buildkite = Buildkite()
     buildkite.set_access_token(token)
 
-    artifacts = buildkite.artifacts().list_artifacts_for_build(org, pipeline, build_number)
+    list = buildkite.artifacts().list_artifacts_for_build
+
+    page = 1
+    artifacts = []
+    while page:
+        response = list(org, pipeline, build_number, page=page, with_pagination=True)
+        for artifact in response.body:
+            artifacts.append(artifact)
+        page = response.next_page
+        if page:
+            logger.debug('fetching page {} of artifacts'.format(page))
+
     logger.debug('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
     for artifact in artifacts:
-        logger.debug('{} artifact: {}'.format(artifact['state'], artifact))
+        logger.debug('{} artifact: {}'.format(artifact.get('state'), artifact))
 
     return artifacts
 
@@ -97,9 +108,6 @@ def make_dict_path_safe(mapping: Dict[str, str]) -> Dict[str, str]:
 
 def download_artifacts(token: str, org: str, pipeline: str, build_number: int, artifacts: List[Dict],
                        path_safe_job_names: Dict[str, str], path: str) -> List[str]:
-    from pybuildkite.buildkite import Buildkite
-    from pybuildkiteext import artifacts as atf
-
     buildkite = Buildkite()
     buildkite.set_access_token(token)
 
@@ -148,7 +156,7 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
         while True:
             build = get_build(buildkite_token, org, pipeline, build_number)
             if build['state'] not in ['running', 'scheduled', 'canceling']:
-                logger.info('build is in ''{}'' state'.format(build['state']))
+                logger.info('build is in ''{}'' state'.format(build.get('state')))
                 break
             logger.debug('waiting {}s before contacting Buildkite API again'.format(POLL_SLEEP))
             time.sleep(POLL_SLEEP)
