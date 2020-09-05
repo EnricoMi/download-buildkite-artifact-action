@@ -173,20 +173,13 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
                           if 'name' in job])
         path_safe_job_names = make_dict_path_safe(job_names)
 
-        # wait until the Buildkite all artifacts terminate
-        while True:
-            artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
-            new_artifacts = [artifact for artifact in artifacts if artifact['state'] == 'new']
-            if not any(new_artifacts):
-                break
-
-            logger.debug('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
+        # get all artifacts for that build
+        artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
+        new_artifacts = [artifact for artifact in artifacts if artifact['state'] == 'new']
+        if any(new_artifacts):
             logger.debug('{} artifacts still in new state'.format(len(new_artifacts)))
             for artifact in new_artifacts:
                 logger.debug('new artifact: {}'.format(artifact))
-
-            logger.debug('waiting {}s before contacting Buildkite API again'.format(POLL_SLEEP))
-            time.sleep(POLL_SLEEP)
 
         logger.info('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
 
