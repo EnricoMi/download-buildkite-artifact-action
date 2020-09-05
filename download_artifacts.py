@@ -89,7 +89,7 @@ def get_build_artifacts(token: str, org: str, pipeline: str, build_number: int) 
 
 def make_path_safe(string: str) -> str:
     safe_characters = "".join(c if c.isalnum() or c in ['-', '_'] else '-' for c in string).strip()
-    reduced = safe_characters
+    reduced = safe_characters[:50]
     for pattern, repl in [('-+', '-'), ('^-+', ''), ('-+$', '')]:
         reduced = re.sub(pattern, repl, reduced)
     return reduced
