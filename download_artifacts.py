@@ -22,12 +22,6 @@ from typing import List, Dict
 from github import Github
 from pybuildkite.buildkite import Buildkite
 
-from pybuildkiteext import artifacts as atf
-
-# to prevent pybuildkiteext import to be auto-removed
-if getattr(atf.Artifacts, 'download_artifact') is None:
-    raise RuntimeError('patching pybuildkite Artifacts failed')
-
 
 logger = logging.getLogger('download-buildkite-artifact')
 

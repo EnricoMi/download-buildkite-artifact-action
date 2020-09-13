@@ -1,2 +1,2 @@
-pybuildkite
+pybuildkite>=1.1.0
 PyGithub

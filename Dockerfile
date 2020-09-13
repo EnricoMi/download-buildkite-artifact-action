@@ -12,7 +12,6 @@ LABEL com.github.actions.color="green"
 RUN pip install -U --force pip pybuildkite PyGithub
 
 COPY githubext /action/githubext
-COPY pybuildkiteext /action/pybuildkiteext
 COPY download_artifacts.py /action/
 
 ENTRYPOINT ["python", "/action/download_artifacts.py"]
