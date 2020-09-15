@@ -10,7 +10,8 @@ class DownloadTest(unittest.TestCase):
         self.assertEqual('abc-123-DEF', make_path_safe('abc 123  DEF'))
         self.assertEqual('some-paths', make_path_safe('some/paths/..'))
         self.assertEqual('some-characters', make_path_safe('some ⚡⚠✔✗ characters'))
-        self.assertEqual('this-is-a-very-very-very-very-very-very-very-long', make_path_safe('this is a very very very very very very very long path'))
+        self.assertEqual('this-is-a-very-very-very-very-very-very-very-very-very-very-very-very-long',
+                         make_path_safe('this is a very very very very very very very very very very very very long path'))
 
     def test_make_dict_path_safe(self):
         self.assertEqual(dict(), make_dict_path_safe(dict()))
@@ -20,12 +21,12 @@ class DownloadTest(unittest.TestCase):
         self.assertEqual(dict(id1='unsafe-name', id2='unsafe-name_2', id3='name3'), make_dict_path_safe(dict(id1='unsafe name', id2=' unsafe name', id3='name3')))
         self.assertEqual(
             dict(
-                id1='this-is-a-very-very-very-very-very-very-very-long',
-                id2='this-is-a-very-very-very-very-very-very-very-long_2'
+                id1='this-is-a-very-very-very-very-very-very-very-very-very-very-very-very-long',
+                id2='this-is-a-very-very-very-very-very-very-very-very-very-very-very-very-long_2'
             ),
             make_dict_path_safe(
                 dict(
-                    id1='this is a very very very very very very very long path',
-                    id2='this is a very very very very very very very long path '
+                    id1='this is a very very very very very very very very very very very very long path',
+                    id2='this is a very very very very very very very very very very very very long path '
                 )
             ))
