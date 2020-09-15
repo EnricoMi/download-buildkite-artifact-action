@@ -1,2 +1,2 @@
-pybuildkite>=1.1.0
+git+git://github.com/EnricoMi/pybuildkite.git@branch-get-build-with-retried-jobs
 PyGithub
