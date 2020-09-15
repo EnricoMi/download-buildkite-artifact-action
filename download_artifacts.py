@@ -57,7 +57,7 @@ def get_build(token: str, org: str, pipeline: str, build_number: int) -> Dict:
     buildkite = Buildkite()
     buildkite.set_access_token(token)
 
-    return buildkite.builds().get_build_by_number(org, pipeline, build_number)
+    return buildkite.builds().get_build_by_number(org, pipeline, build_number, include_retried_jobs=True)
 
 
 def get_build_artifacts(token: str, org: str, pipeline: str, build_number: int) -> List[Dict]:
