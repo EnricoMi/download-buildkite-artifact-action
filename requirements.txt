@@ -1,2 +1,2 @@
-git+git://github.com/EnricoMi/pybuildkite.git@branch-get-build-with-retried-jobs
+git+git://github.com/pyasi/pybuildkite.git@e57893d868a30ff6aa2508ff75a9defc12c42996
 PyGithub
