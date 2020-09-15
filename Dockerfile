@@ -9,7 +9,8 @@ LABEL com.github.actions.description="A GitHub Action to download artifacts from
 LABEL com.github.actions.icon="download-cloud"
 LABEL com.github.actions.color="green"
 
-RUN pip install -U --force pip pybuildkite PyGithub
+COPY requirements.txt /action/
+RUN pip install -U --force pip && pip install -U --force -r /action/requirements.txt
 
 COPY githubext /action/githubext
 COPY download_artifacts.py /action/
