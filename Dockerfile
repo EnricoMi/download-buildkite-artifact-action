@@ -1,4 +1,4 @@
-FROM python:3.6-alpine
+FROM python:3.6-slim
 
 LABEL repository="https://github.com/EnricoMi/download-buildkite-artifact-action"
 LABEL homepage="https://github.com/EnricoMi/download-buildkite-artifact-action"
@@ -10,7 +10,7 @@ LABEL com.github.actions.icon="download-cloud"
 LABEL com.github.actions.color="green"
 
 COPY requirements.txt /action/
-RUN pip install -U --force pip && pip install -U --force -r /action/requirements.txt
+RUN pip install --upgrade --force --no-cache-dir pip && pip install --upgrade --force --no-cache-dir -r /action/requirements.txt
 
 COPY githubext /action/githubext
 COPY download_artifacts.py /action/
