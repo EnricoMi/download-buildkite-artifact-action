@@ -28,6 +28,7 @@ logger = logging.getLogger('download-buildkite-artifact')
 INITIAL_DELAY = 5  # action initially delays accessing GitHub API for this number of seconds
 POLL_SLEEP = 30    # action polls GitHub API and Buildkite API every this number of seconds
 WAIT_ON_GITHUB_CHECK = 300  # seconds the action waits for a Buildkite check to appear on the commit
+LOG_EVERY_SECONDS = 60*60   # some logging only occurs every X seconds
 DEFAULT_GITHUB_BASE_URL = "https://api.github.com"
 
 
@@ -153,12 +154,22 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
         org, pipeline, build_number = parse_buildkite_url(url)
 
         # wait until the Buildkite build terminates
+        last_log = 0
+        last_state = None
         while True:
             build = get_build(buildkite_token, org, pipeline, build_number)
-            if build['state'] not in ['running', 'scheduled', 'canceling']:
-                logger.info('build is in ''{}'' state'.format(build.get('state')))
+            state = build['state']
+            if state != last_state:
+                logger.info('build is in ''{}'' state'.format(state))
+                last_state = state
+            if state not in ['running', 'scheduled', 'canceling']:
                 break
-            logger.debug('waiting {}s before contacting Buildkite API again'.format(POLL_SLEEP))
+            if time.time() - last_log >= LOG_EVERY_SECONDS:
+                logger.debug('{}waiting for build {} to finish'.format(
+                    'still ' if last_log > 0 else '',
+                    build_number
+                ))
+                last_log = time.time()
             time.sleep(POLL_SLEEP)
 
         # get a job-id -> name mapping from build
