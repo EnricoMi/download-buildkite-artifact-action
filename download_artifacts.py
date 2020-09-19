@@ -154,6 +154,7 @@ def main(github_api_url: str, github_token: str, repo: str,
 
     for url in buildkite_builds:
         org, pipeline, build_number = parse_buildkite_url(url)
+        print('::set-output name=build-number::{}'.format(build_number))
 
         # wait until the Buildkite build terminates
         last_log = 0
@@ -173,6 +174,10 @@ def main(github_api_url: str, github_token: str, repo: str,
                 ))
                 last_log = time.time()
             time.sleep(POLL_SLEEP)
+
+        # set build state output
+        if 'state' in build:
+            print('::set-output name=build-state::{}'.format(build['state']))
 
         # get a job-id -> name mapping from build
         job_names = dict([(job.get('id'), job.get('name'))

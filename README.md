@@ -40,3 +40,11 @@ Artifacts are stored under the following path: `{output_path}/{job_name}/{artifa
 - The `artifact_path` is the path and filename for the artifact as displayed on the Buildkite build page:
 
 ![Buildkite artifacts](buildkite-artifact.png)
+
+
+The action provides the following outputs:
+
+|output        |description                      |
+|--------------|---------------------------------|
+|`build-number`|The number of the Buildkite build|
+|`build-state`|The state of the Buildkite build |

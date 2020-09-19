@@ -23,6 +23,11 @@ inputs:
     description: 'Action logging level'
     required: false
     default: 'INFO'
+outputs:
+  build-number:
+    description: 'The number of the Buildkite build'
+  build-state:
+    description: 'The state of the Buildkite build'
 runs:
   using: 'docker'
   image: 'Dockerfile'
