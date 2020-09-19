@@ -125,7 +125,9 @@ def download_artifacts(token: str, org: str, pipeline: str, build_number: int, a
                  for artifact in artifacts if artifact['state'] == 'finished'])
 
 
-def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str, buildkite_url: str, commit: str, output_path: str):
+def main(github_api_url: str, github_token: str, repo: str,
+         buildkite_token: str, buildkite_url: str, ignore_job_states: List[str],
+         commit: str, output_path: str):
     if buildkite_url is None:
         # get the Buildkite url from github
         logger.debug('waiting {}s before contacting GitHub API the first time'.format(INITIAL_DELAY))
@@ -178,15 +180,33 @@ def main(github_api_url: str, github_token: str, repo: str, buildkite_token: str
                           if 'name' in job])
         path_safe_job_names = make_dict_path_safe(job_names)
 
+        # get job-id -> state mapping from build
+        job_states = dict([(job.get('id'), job.get('state'))
+                           for job in build.get('jobs', [])
+                           if 'state' in job])
+
         # get all artifacts for that build
         artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
+        logger.info('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
+
         new_artifacts = [artifact for artifact in artifacts if artifact['state'] == 'new']
         if any(new_artifacts):
             logger.debug('{} artifacts still in new state'.format(len(new_artifacts)))
             for artifact in new_artifacts:
                 logger.debug('new artifact: {}'.format(artifact))
 
-        logger.info('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
+        for ignore_job_state in ignore_job_states:
+            ignore_artifacts = [artifact
+                                for artifact in artifacts
+                                if job_states.get(artifact['job_id']) == ignore_job_state]
+
+            if any(ignore_artifacts):
+                artifacts = [artifact for artifact in artifacts if artifact not in ignore_artifacts]
+                logger.debug('{} artifacts of {} jobs ignored'.format(len(ignore_artifacts), ignore_job_state))
+                for artifact in ignore_artifacts:
+                    logger.debug('ignored artifact: {}'.format(artifact))
+
+        logger.info('downloading {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
 
         # download the Buildkite artifacts
         download_artifacts(buildkite_token, org, pipeline, build_number, artifacts, path_safe_job_names, output_path)
@@ -223,6 +243,8 @@ if __name__ == "__main__":
     github_repo = get_var('GITHUB_REPOSITORY')
     buildkite_token = get_var('BUILDKITE_TOKEN')
     buildkite_url = get_var('BUILDKITE_BUILD_URL')
+    ignore_job_states = get_var('IGNORE_JOB_STATES')
+    ignore_job_states = ignore_job_states.split(',') if ignore_job_states else []
     commit = get_var('COMMIT') or os.environ.get('GITHUB_SHA')
     output_path = get_var('OUTPUT_PATH') or '.'
 
@@ -235,4 +257,4 @@ if __name__ == "__main__":
     check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
     check_var(commit, 'COMMIT', 'Commit')
 
-    main(github_api_url, github_token, github_repo, buildkite_token, buildkite_url, commit, output_path)
+    main(github_api_url, github_token, github_repo, buildkite_token, buildkite_url, ignore_job_states, commit, output_path)
