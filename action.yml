@@ -11,6 +11,10 @@ inputs:
   buildkite_build_url:
     description: 'Buildkite build url to downloaded artifacts from'
     required: false
+  ignore_build_states:
+    description: 'List of build states to ignore. No artifacts will be downloaded when build has one of these states. Use comma to separate multiple states, e.g. "canceled,skipped,failed"'
+    required: false
+    default: ''
   ignore_job_states:
     description: 'List of job states to ignore. No artifacts of jobs that have this state are downloaded. Use comma to separate multiple states, e.g. "timed_out,failed"'
     required: false

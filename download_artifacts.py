@@ -126,8 +126,10 @@ def download_artifacts(token: str, org: str, pipeline: str, build_number: int, a
 
 
 def main(github_api_url: str, github_token: str, repo: str,
-         buildkite_token: str, buildkite_url: str, ignore_job_states: List[str],
+         buildkite_token: str, buildkite_url: str,
+         ignore_build_states: List[str], ignore_job_states: List[str],
          commit: str, output_path: str):
+
     if buildkite_url is None:
         # get the Buildkite url from github
         logger.debug('waiting {}s before contacting GitHub API the first time'.format(INITIAL_DELAY))
@@ -177,7 +179,11 @@ def main(github_api_url: str, github_token: str, repo: str,
 
         # set build state output
         if 'state' in build:
-            print('::set-output name=build-state::{}'.format(build['state']))
+            state = build['state']
+            print('::set-output name=build-state::{}'.format(state))
+            if state in ignore_build_states:
+                logger.info('ignoring {} build'.format(state))
+                continue
 
         # get a job-id -> name mapping from build
         job_names = dict([(job.get('id'), job.get('name'))
@@ -248,6 +254,8 @@ if __name__ == "__main__":
     github_repo = get_var('GITHUB_REPOSITORY')
     buildkite_token = get_var('BUILDKITE_TOKEN')
     buildkite_url = get_var('BUILDKITE_BUILD_URL')
+    ignore_build_states = get_var('IGNORE_BUILD_STATES')
+    ignore_build_states = ignore_build_states.split(',') if ignore_build_states else []
     ignore_job_states = get_var('IGNORE_JOB_STATES')
     ignore_job_states = ignore_job_states.split(',') if ignore_job_states else []
     commit = get_var('COMMIT') or os.environ.get('GITHUB_SHA')
@@ -262,4 +270,7 @@ if __name__ == "__main__":
     check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
     check_var(commit, 'COMMIT', 'Commit')
 
-    main(github_api_url, github_token, github_repo, buildkite_token, buildkite_url, ignore_job_states, commit, output_path)
+    main(github_api_url, github_token, github_repo,
+         buildkite_token, buildkite_url,
+         ignore_build_states, ignore_job_states,
+         commit, output_path)
