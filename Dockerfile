@@ -9,8 +9,6 @@ LABEL com.github.actions.description="A GitHub Action to download artifacts from
 LABEL com.github.actions.icon="download-cloud"
 LABEL com.github.actions.color="green"
 
-RUN apk add --no-cache git
-
 COPY requirements.txt /action/
 RUN pip install --upgrade --force --no-cache-dir pip && pip install --upgrade --force --no-cache-dir -r /action/requirements.txt
 

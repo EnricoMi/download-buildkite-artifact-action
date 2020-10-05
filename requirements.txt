@@ -1,2 +1,2 @@
-git+git://github.com/pyasi/pybuildkite.git@e57893d868a30ff6aa2508ff75a9defc12c42996
+pybuildkite>=1.1.1
 PyGithub
