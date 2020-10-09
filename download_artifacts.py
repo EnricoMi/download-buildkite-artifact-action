@@ -12,6 +12,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 
+import json
 import logging
 import os
 import re
@@ -21,7 +22,6 @@ from typing import List, Dict
 
 from github import Github
 from pybuildkite.buildkite import Buildkite
-
 
 logger = logging.getLogger('download-buildkite-artifact')
 
@@ -223,18 +223,15 @@ def main(github_api_url: str, github_token: str, repo: str,
         download_artifacts(buildkite_token, org, pipeline, build_number, artifacts, path_safe_job_names, output_path)
 
 
-def check_event_name(event: str = os.environ.get('GITHUB_EVENT_NAME')) -> None:
-    # only checked when run by GitHub Actions GitHub App
-    if os.environ.get('GITHUB_ACTIONS') is None:
-        logger.warning('action not running on GitHub, skipping event name check')
-        return
+def get_commit_sha(event: dict, event_name: str):
+    logger.debug("action triggered by '{}' event".format(event_name))
 
-    if event is None:
-        raise RuntimeError('No event name provided trough GITHUB_EVENT_NAME')
+    if event_name == 'push':
+        return os.environ.get('GITHUB_SHA')
+    elif event_name in ['pull_request', 'pull_request_target']:
+        return event.get('pull_request', {}).get('head', {}).get('sha')
 
-    logger.debug('action triggered by ''{}'' event'.format(event))
-    if event != 'push':
-        raise RuntimeError('Unsupported event, only ''push'' is supported: {}'.format(event))
+    raise RuntimeError("event '{}' is not supported".format(event))
 
 
 if __name__ == "__main__":
@@ -246,9 +243,6 @@ if __name__ == "__main__":
     log_level = get_var('LOG_LEVEL') or 'INFO'
     logger.level = logging.getLevelName(log_level)
 
-    # check event is supported
-    check_event_name()
-
     github_api_url = os.environ.get('GITHUB_API_URL') or DEFAULT_GITHUB_BASE_URL
     github_token = get_var('GITHUB_TOKEN')
     github_repo = get_var('GITHUB_REPOSITORY')
@@ -258,12 +252,20 @@ if __name__ == "__main__":
     ignore_build_states = ignore_build_states.split(',') if ignore_build_states else []
     ignore_job_states = get_var('IGNORE_JOB_STATES')
     ignore_job_states = ignore_job_states.split(',') if ignore_job_states else []
-    commit = get_var('COMMIT') or os.environ.get('GITHUB_SHA')
-    output_path = get_var('OUTPUT_PATH') or '.'
 
     def check_var(var: str, name: str, label: str) -> None:
         if var is None:
             raise RuntimeError('{} must be provided via action input or environment variable {}'.format(label, name))
+
+    event = get_var('GITHUB_EVENT_PATH')
+    event_name = get_var('GITHUB_EVENT_NAME')
+    check_var(event, 'GITHUB_EVENT_PATH', 'GitHub event file path')
+    check_var(event_name, 'GITHUB_EVENT_NAME', 'GitHub event name')
+    with open(event, 'r') as f:
+        event = json.load(f)
+
+    commit = get_var('COMMIT') or get_commit_sha(event, event_name)
+    output_path = get_var('OUTPUT_PATH') or '.'
 
     check_var(github_token, 'GITHUB_TOKEN', 'GitHub token')
     check_var(github_repo, 'GITHUB_REPOSITORY', 'GitHub repository')
