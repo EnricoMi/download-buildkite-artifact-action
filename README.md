@@ -24,7 +24,7 @@ You can add this action to your GitHub workflow and configure it as follows:
     log_level: DEBUG
 ```
 
-**Note:** The action can only be used on `push` events.
+**Note:** The action can only be used on `push`, `pull_request` and `pull_request_target` events.
 
 The `output_path` and `log_level` variables are optional. Their default values are `.` (current directory) and `INFO`, respectively. The Python logging module defines the [available log levels](https://docs.python.org/3/library/logging.html#logging-levels).
 
