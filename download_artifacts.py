@@ -22,6 +22,8 @@ from typing import List, Dict
 
 from github import Github
 from pybuildkite.buildkite import Buildkite
+from requests.exceptions import HTTPError
+from datetime import timedelta
 
 logger = logging.getLogger('download-buildkite-artifact')
 
@@ -53,17 +55,11 @@ def parse_buildkite_url(url) -> (str, str, int):
     return None
 
 
-def get_build(token: str, org: str, pipeline: str, build_number: int) -> Dict:
-    buildkite = Buildkite()
-    buildkite.set_access_token(token)
-
+def get_build(buildkite: Buildkite, org: str, pipeline: str, build_number: int) -> Dict:
     return buildkite.builds().get_build_by_number(org, pipeline, build_number, include_retried_jobs=True)
 
 
-def get_build_artifacts(token: str, org: str, pipeline: str, build_number: int) -> List[Dict]:
-    buildkite = Buildkite()
-    buildkite.set_access_token(token)
-
+def get_build_artifacts(buildkite: Buildkite, org: str, pipeline: str, build_number: int) -> List[Dict]:
     list = buildkite.artifacts().list_artifacts_for_build
 
     page = 1
@@ -98,35 +94,78 @@ def make_dict_path_safe(mapping: Dict[str, str]) -> Dict[str, str]:
     return safe_dict
 
 
-def download_artifacts(token: str, org: str, pipeline: str, build_number: int, artifacts: List[Dict],
+def download_artifacts(buildkite: Buildkite, org: str, pipeline: str, build_number: int, artifacts: List[Dict],
                        path_safe_job_names: Dict[str, str], path: str) -> List[str]:
-    buildkite = Buildkite()
-    buildkite.set_access_token(token)
 
+    logger.info('Downloading {} artifact{} from build {}'.format(
+        len(artifacts),
+        '' if len(artifacts) == 1 else 's',
+        build_number
+    ))
+
+    attempt = 1
+    max_attempts = 5
+    retry_artifact_ids = set()
+    failed_artifact_ids = set()
     root_path = os.path.abspath(path)
 
     def download_artifact(artifact_id: str, job_id: str, file_path: str):
         path_safe_job_name = path_safe_job_names.get(job_id, job_id)
         local_path = os.path.abspath(os.path.join(path, path_safe_job_name, file_path))
         if not local_path.startswith(root_path):
-            raise RuntimeError("cannot write artifact to '{}' as output path is '{}'".format(local_path, root_path))
+            raise RuntimeError("Cannot write artifact to '{}' as output path is '{}'".format(local_path, root_path))
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
 
-        artifact = buildkite.artifacts().download_artifact(org, pipeline, build_number, job_id, artifact_id)
+        try:
+            artifact = buildkite.artifacts().download_artifact(org, pipeline, build_number, job_id, artifact_id)
 
-        logger.info('writing {} bytes to {}'.format(len(artifact), local_path))
-        with open(local_path, 'bw') as f:
-            f.write(artifact)
+            logger.debug('writing {} bytes to {}'.format(len(artifact), local_path))
+            with open(local_path, 'bw') as f:
+                f.write(artifact)
 
-        return local_path
+            return local_path
+        except HTTPError as e:
+            logger.debug(f'Downloading artifact {artifact_id} to {local_path} failed.', exc_info=e)
+            if 500 <= e.response.status_code < 600:
+                retry_artifact_ids.add(artifact_id)
+            else:
+                failed_artifact_ids.add(artifact_id)
 
-    # download only the finished artifacts
-    return list([download_artifact(artifact['id'], artifact['job_id'], artifact['path'])
-                 for artifact in artifacts if artifact['state'] == 'finished'])
+    all_downloaded_files = []
+    while artifacts and attempt <= max_attempts:
+        # download only the new and finished artifacts
+        # sometimes artifacts are stuck in new state but can be downloaded just fine
+        downloaded_files = list([download_artifact(artifact['id'], artifact['job_id'], artifact['path'])
+                                 for artifact in artifacts if artifact['state'] in ['new', 'finished']])
+
+        # memorize all successful download files
+        for file in downloaded_files:
+            if file is not None:
+                all_downloaded_files.append(file)
+
+        # prepare next attempt
+        artifacts = [artifact
+                     for artifact in artifacts
+                     if artifact['id'] in retry_artifact_ids]
+        retry_artifact_ids.clear()
+
+        # compute delay to next attempt
+        retry = attempt - 1
+        wait = timedelta(seconds=5 * 4 ** retry)
+
+        # log next attempt
+        attempt += 1
+        if len(artifacts) > 0 and attempt <= max_attempts:
+            logger.info('Download of {} artifact{} failed, retrying in {}.'.format(
+                len(artifacts), 's' if len(artifacts) > 1 else '', wait
+            ))
+            time.sleep(wait.seconds)
+
+    return all_downloaded_files
 
 
 def main(github_api_url: str, github_token: str, repo: str,
-         buildkite_token: str, buildkite_url: str,
+         buildkite: Buildkite, buildkite_url: str,
          ignore_build_states: List[str], ignore_job_states: List[str],
          commit: str, output_path: str):
 
@@ -162,7 +201,7 @@ def main(github_api_url: str, github_token: str, repo: str,
         last_log = 0
         last_state = None
         while True:
-            build = get_build(buildkite_token, org, pipeline, build_number)
+            build = get_build(buildkite, org, pipeline, build_number)
             state = build['state']
             if state != last_state:
                 logger.info('build is in ''{}'' state'.format(state))
@@ -197,7 +236,7 @@ def main(github_api_url: str, github_token: str, repo: str,
                            if 'state' in job])
 
         # get all artifacts for that build
-        artifacts = get_build_artifacts(buildkite_token, org, pipeline, build_number)
+        artifacts = get_build_artifacts(buildkite, org, pipeline, build_number)
         logger.info('found {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
 
         new_artifacts = [artifact for artifact in artifacts if artifact['state'] == 'new']
@@ -217,10 +256,8 @@ def main(github_api_url: str, github_token: str, repo: str,
                 for artifact in ignore_artifacts:
                     logger.debug('ignored artifact: {}'.format(artifact))
 
-        logger.info('downloading {} artifact{}'.format(len(artifacts), '' if len(artifacts) == 1 else 's'))
-
         # download the Buildkite artifacts
-        download_artifacts(buildkite_token, org, pipeline, build_number, artifacts, path_safe_job_names, output_path)
+        download_artifacts(buildkite, org, pipeline, build_number, artifacts, path_safe_job_names, output_path)
 
 
 def get_commit_sha(event: dict, event_name: str):
@@ -272,7 +309,10 @@ if __name__ == "__main__":
     check_var(buildkite_token, 'BUILDKITE_TOKEN', 'BuildKite token')
     check_var(commit, 'COMMIT', 'Commit')
 
+    buildkite = Buildkite()
+    buildkite.set_access_token(buildkite_token)
+
     main(github_api_url, github_token, github_repo,
-         buildkite_token, buildkite_url,
+         buildkite, buildkite_url,
          ignore_build_states, ignore_job_states,
          commit, output_path)
