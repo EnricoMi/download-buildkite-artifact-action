@@ -119,8 +119,8 @@ class DownloadTest(unittest.TestCase):
                  '/jid4', '/jid4/path4',
                  '/jid5', '/jid5/path5',
                  '/jid6'],
-                [file[file.startswith(path) and len(path):]
-                 for file in glob(os.path.join(path, '**'), recursive=True)]
+                sorted([file[file.startswith(path) and len(path):]
+                        for file in glob(os.path.join(path, '**'), recursive=True)])
             )
 
             self.assertEqual([], time.mock_calls)
@@ -199,8 +199,8 @@ class DownloadTest(unittest.TestCase):
                  '/jid3', '/jid3/path3',
                  '/jid4', '/jid4/path4',
                  '/jid5'],
-                [file[file.startswith(path) and len(path):]
-                 for file in glob(os.path.join(path, '**'), recursive=True)]
+                sorted([file[file.startswith(path) and len(path):]
+                        for file in glob(os.path.join(path, '**'), recursive=True)])
             )
 
             self.assertEqual([mock.call(5), mock.call(20)], time.mock_calls)
