@@ -41,7 +41,7 @@ def get_buildkite_builds_from_github(api_url: str, token: str, repo: str, commit
     gh = Github(token, base_url=api_url)
     commit = gh.get_repo(repo).get_commit(commit)
     status = commit.get_combined_status()
-    logger.debug('found {} status{}:'.format(status.total_count, '' if status.total_count == 1 else 'es'))
+    logger.debug('Found {} status{}:'.format(status.total_count, '' if status.total_count == 1 else 'es'))
     for s in status.statuses:
         logger.debug('{} - {}'.format(s, s.target_url))
 
@@ -73,7 +73,7 @@ def get_build_artifacts(buildkite: Buildkite, org: str, pipeline: str, build_num
             artifacts.append(artifact)
         page = response.next_page
         if page:
-            logger.debug('fetching page {} of artifacts'.format(page))
+            logger.debug('Fetching page {} of artifacts.'.format(page))
 
     return artifacts
 
@@ -235,7 +235,7 @@ def main(github_api_url: str, github_token: str, repo: str,
 
     if buildkite_url is None:
         # get the Buildkite url from github
-        logger.debug('waiting {}s before contacting GitHub API the first time'.format(INITIAL_DELAY))
+        logger.debug('Waiting {}s before contacting GitHub API the first time.'.format(INITIAL_DELAY))
 
         start = time.time()
         time.sleep(INITIAL_DELAY)
@@ -245,21 +245,23 @@ def main(github_api_url: str, github_token: str, repo: str,
                 break
 
             if time.time() - start >= WAIT_ON_GITHUB_CHECK:
-                logger.warning('waited {} seconds for a BuildKite check to appear on commit {}, '
-                               'giving up'.format(WAIT_ON_GITHUB_CHECK, commit))
-                return
+                logger.warning('Waited {} for a BuildKite check to appear on commit {}, giving up.'.format(
+                    humanize.naturaldelta(timedelta(seconds=WAIT_ON_GITHUB_CHECK)), commit
+                ))
+                return False
 
-            logger.debug('waiting {}s before contacting GitHub API again'.format(POLL_SLEEP))
+            logger.debug('Waiting {}s before contacting GitHub API again'.format(POLL_SLEEP))
             time.sleep(POLL_SLEEP)
 
         if not logger.isEnabledFor(logging.DEBUG):
-            logger.info('found {} status{}'.format(len(buildkite_builds), '' if len(buildkite_builds) == 1 else 'es'))
+            logger.info('Found {} status{}.'.format(len(buildkite_builds), '' if len(buildkite_builds) == 1 else 'es'))
     else:
         buildkite_builds = [buildkite_url]
 
     for url in buildkite_builds:
         org, pipeline, build_number = parse_buildkite_url(url)
         print('::set-output name=build-number::{}'.format(build_number))
+        logger.info('Waiting for build {} to finish.'.format(build_number))
 
         # wait until the Buildkite build terminates
         last_log = 0
@@ -268,25 +270,24 @@ def main(github_api_url: str, github_token: str, repo: str,
             build = get_build(buildkite, org, pipeline, build_number)
             state = build['state']
             if state != last_state:
-                logger.info('build is in ''{}'' state'.format(state))
+                logger.info('Build is in ''{}'' state.'.format(state))
                 last_state = state
             if state not in ['running', 'scheduled', 'canceling']:
                 break
             if time.time() - last_log >= LOG_EVERY_SECONDS:
-                logger.debug('{}waiting for build {} to finish'.format(
-                    'still ' if last_log > 0 else '',
+                logger.debug('{} for build {} to finish.'.format(
+                    'Still waiting' if last_log > 0 else 'Waiting',
                     build_number
                 ))
                 last_log = time.time()
             time.sleep(POLL_SLEEP)
 
         # set build state output
-        if 'state' in build:
-            state = build['state']
-            print('::set-output name=build-state::{}'.format(state))
-            if state in ignore_build_states:
-                logger.info('ignoring {} build'.format(state))
-                continue
+        state = build['state']
+        print('::set-output name=build-state::{}'.format(state))
+        if state in ignore_build_states:
+            logger.info('Ignoring {} build.'.format(state))
+            continue
 
         # get a job-id -> name mapping from build
         job_names = dict([(job.get('id'), job.get('name'))
@@ -316,7 +317,11 @@ def main(github_api_url: str, github_token: str, repo: str,
 
             if any(ignore_artifacts):
                 artifacts = [artifact for artifact in artifacts if artifact not in ignore_artifacts]
-                logger.debug('{} artifacts of {} jobs ignored.'.format(len(ignore_artifacts), ignore_job_state))
+                logger.info('Ignoring {} artifact{} of {} jobs.'.format(
+                    len(ignore_artifacts),
+                    '' if len(ignore_artifacts) == 1 else 's',
+                    ignore_job_state
+                ))
                 for artifact in ignore_artifacts:
                     logger.debug('Ignored artifact: {}'.format(artifact))
 
@@ -329,14 +334,14 @@ def main(github_api_url: str, github_token: str, repo: str,
 
 
 def get_commit_sha(event: dict, event_name: str):
-    logger.debug("action triggered by '{}' event".format(event_name))
+    logger.debug("Action triggered by '{}' event.".format(event_name))
 
     if event_name == 'push':
         return os.environ.get('GITHUB_SHA')
     elif event_name in ['pull_request', 'pull_request_target']:
         return event.get('pull_request', {}).get('head', {}).get('sha')
 
-    raise RuntimeError("event '{}' is not supported".format(event))
+    raise RuntimeError("Event '{}' is not supported.".format(event))
 
 
 if __name__ == "__main__":
