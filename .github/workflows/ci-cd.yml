@@ -33,7 +33,7 @@ jobs:
       run: python -m pytest --junit-xml test-results/pytest.xml
 
     - name: Unit Test Results
-      uses: EnricoMi/publish-unit-test-result-action@master
+      uses: docker://ghcr.io/enricomi/publish-unit-test-result-action:latest
       if: always()
       with:
         check_name: Unit Test Results
