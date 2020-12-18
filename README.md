@@ -26,6 +26,18 @@ You can add this action to your GitHub workflow and configure it as follows:
 
 **Note:** The action can only be used on `push`, `pull_request` and `pull_request_target` events.
 
+## Using pre-build Docker images
+
+You can use a pre-built docker image from [GitHub Container Registry](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry) (Beta).
+This way, the action is not build for every run of your workflow, and you are guaranteed to get the exact same action build:
+```yaml
+  uses: docker://ghcr.io/enricomi/download-buildkite-artifact-action:v1.5
+```
+
+**Note:** GitHub Container Registry is currently in [beta phase](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry).
+This action may abandon GitHub Container Registry support when GitHub changes its conditions.
+
+## Configuration
 The `output_path` and `log_level` variables are optional. Their default values are `.` (current directory) and `INFO`, respectively. The Python logging module defines the [available log levels](https://docs.python.org/3/library/logging.html#logging-levels).
 
 You have to provide a [Buildkite API Access Token](https://buildkite.com/docs/apis/managing-api-tokens) via `buildkite_token` to be stored in your [GitHub secrets](https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets).
