@@ -287,6 +287,7 @@ def main(github_api_url: str, github_token: str, repo: str,
         print('::set-output name=build-state::{}'.format(state))
         if state in ignore_build_states:
             logger.info('Ignoring {} build.'.format(state))
+            print('::set-output name=download-state::skipped'.format(state))
             continue
 
         # get a job-id -> name mapping from build
@@ -329,6 +330,12 @@ def main(github_api_url: str, github_token: str, repo: str,
         downloaded_paths, failed_ids = Downloader().download_artifacts(
             buildkite, org, pipeline, build_number, artifacts, path_safe_job_names, output_path
         )
+
+        # indicate success or failure as output
+        print('::set-output name=download-state::{}'.format('success' if len(failed_ids) == 0 else 'failure'))
+
+        # provide downloaded paths
+        print('::set-output name=download-paths::{}'.format(downloaded_paths))
 
         return len(failed_ids) == 0
 
