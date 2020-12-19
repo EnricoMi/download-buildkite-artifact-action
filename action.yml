@@ -32,6 +32,10 @@ outputs:
     description: 'The number of the Buildkite build'
   build-state:
     description: 'The state of the Buildkite build'
+  download-state:
+    description: 'The outcome of downloading artifacts: skipped, success, failure'
+  download-paths:
+    description: 'The paths of downloaded artifacts as a Json array of strings'
 runs:
   using: 'docker'
   image: 'Dockerfile'
