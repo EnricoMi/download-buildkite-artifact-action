@@ -24,8 +24,6 @@ You can add this action to your GitHub workflow and configure it as follows:
     log_level: DEBUG
 ```
 
-**Note:** The action can only be used on `push`, `pull_request` and `pull_request_target` events.
-
 ## Using pre-build Docker images
 
 You can use a pre-built docker image from [GitHub Container Registry](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry) (Beta).
