@@ -258,6 +258,7 @@ def main(github_api_url: str, github_token: str, repo: str,
     else:
         buildkite_builds = [buildkite_url]
 
+    # downloads only the first non-skipped build
     for url in buildkite_builds:
         org, pipeline, build_number = parse_buildkite_url(url)
         print('::set-output name=build-number::{}'.format(build_number))
@@ -288,6 +289,8 @@ def main(github_api_url: str, github_token: str, repo: str,
         if state in ignore_build_states:
             logger.info('Ignoring {} build.'.format(state))
             print('::set-output name=download-state::skipped'.format(state))
+            print('::set-output name=download-paths::[]')
+            print('::set-output name=download-files::0')
             continue
 
         # get a job-id -> name mapping from build
@@ -336,6 +339,9 @@ def main(github_api_url: str, github_token: str, repo: str,
 
         # provide downloaded paths
         print('::set-output name=download-paths::{}'.format(downloaded_paths))
+
+        # provide downloaded files
+        print('::set-output name=download-files::{}'.format(len(downloaded_paths)))
 
         return len(failed_ids) == 0
 
