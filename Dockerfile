@@ -12,7 +12,6 @@ LABEL com.github.actions.color="green"
 COPY requirements.txt /action/
 RUN pip install --upgrade --force --no-cache-dir pip && pip install --upgrade --force --no-cache-dir -r /action/requirements.txt
 
-COPY githubext /action/githubext
 COPY download_artifacts.py /action/
 
 ENTRYPOINT ["python", "/action/download_artifacts.py"]

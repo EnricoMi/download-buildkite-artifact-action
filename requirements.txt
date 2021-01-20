@@ -1,3 +1,4 @@
-pybuildkite>=1.1.1
-PyGithub
-humanize
+#pybuildkite>=1.1.1 required
+pybuildkite==1.1.1
+PyGithub==1.54.1
+humanize==3.2.0

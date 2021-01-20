@@ -267,7 +267,7 @@ class DownloadTest(unittest.TestCase):
             self.assertEqual(
                 ['/', '/jid1', '/jid2'],
                 [file[file.startswith(path) and len(path):]
-                 for file in glob(os.path.join(path, '**'), recursive=True)]
+                 for file in sorted(glob(os.path.join(path, '**'), recursive=True))]
             )
 
             self.assertEqual([mock.call(5), mock.call(20), mock.call(80), mock.call(320)], time.mock_calls)
