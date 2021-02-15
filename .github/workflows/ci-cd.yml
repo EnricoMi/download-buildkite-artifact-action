@@ -39,11 +39,8 @@ jobs:
         # as it can not create check runs or pull request comments
         if: always() && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
-          check_name: Unit Test Results
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          comment_on_pr: ${{ github.event_name != 'push' }}
+          github_token: ${{ github.token }}
           files: "test-results/*.xml"
-          log_level: DEBUG
 
       - name: Upload Test Results
         if: always()

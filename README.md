@@ -16,12 +16,10 @@ You can add this action to your GitHub workflow and configure it as follows:
 
 ```yaml
 - name: Buildkite Artifacts
-  uses: EnricoMi/download-buildkite-artifact-action@v1.7
+  uses: EnricoMi/download-buildkite-artifact-action@v1
   with:
-    github_token: ${{ secrets.GITHUB_TOKEN }}
     buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
     output_path: artifacts
-    log_level: DEBUG
 ```
 
 ## Using pre-build Docker images
@@ -29,7 +27,12 @@ You can add this action to your GitHub workflow and configure it as follows:
 You can use a pre-built docker image from [GitHub Container Registry](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry) (Beta).
 This way, the action is not build for every run of your workflow, and you are guaranteed to get the exact same action build:
 ```yaml
-  uses: docker://ghcr.io/enricomi/download-buildkite-artifact-action:v17
+- name: Buildkite Artifacts
+  uses: docker://ghcr.io/enricomi/download-buildkite-artifact-action:v1
+  with:
+    github_token: ${{ github.token }}
+    buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
+    output_path: artifacts
 ```
 
 **Note:** GitHub Container Registry is currently in [beta phase](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry).
