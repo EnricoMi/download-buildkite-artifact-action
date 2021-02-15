@@ -27,6 +27,7 @@ import humanize
 from github import Github
 from pybuildkite.buildkite import Buildkite
 from requests.exceptions import HTTPError
+from urllib3.util.retry import Retry
 
 logger = logging.getLogger('download-buildkite-artifact')
 
@@ -38,7 +39,8 @@ DEFAULT_GITHUB_BASE_URL = "https://api.github.com"
 
 
 def get_buildkite_builds_from_github(api_url: str, token: str, repo: str, commit: str) -> List[str]:
-    gh = Github(token, base_url=api_url)
+    retry = Retry(total=10, backoff_factor=1)
+    gh = Github(token, base_url=api_url, retry=retry)
     commit = gh.get_repo(repo).get_commit(commit)
     status = commit.get_combined_status()
     logger.debug('Found {} status{}:'.format(status.total_count, '' if status.total_count == 1 else 'es'))
