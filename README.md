@@ -55,6 +55,8 @@ Artifacts are stored under the following path: `{output_path}/{job_name}/{artifa
 ![Buildkite artifacts](buildkite-artifact.png)
 
 
+## Action Outputs
+
 The action provides the following outputs:
 
 |output        |description                      |
@@ -64,3 +66,37 @@ The action provides the following outputs:
 |`download-state`|The outcome of downloading artifacts: `skipped`, `success`, `failure`|
 |`download-paths`|The paths of the downloaded artifacts as a Json array of strings|
 |`download-files`|The number of downloaded files|
+
+# Examples
+
+## Trigger Buildkite Build and download artifacts
+
+The following job triggers a Buildkite build and downloads the artifacts from that build:
+
+```yaml
+  buildkite:
+    name: "Builtkite"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Trigger Buildkite Pipeline
+        id: build
+        uses: buildkite/trigger-pipeline-action@master
+        env:
+          PIPELINE: "ORG/PIPELINE"
+          # on "push" event, github.event.pull_request.head.ref will be empty
+          # and trigger-pipeline-action falls back to github.ref
+          BRANCH: "${{ github.event.pull_request.head.ref }}"
+          MESSAGE: "Build triggered by GitHub"
+          BUILDKITE_API_ACCESS_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
+
+      - name: Download Buildkite Artifacts
+        uses: EnricoMi/download-buildkite-artifact-action@v1
+        if: always() && needs.buildkite.result == \'success\'
+        with:
+          buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
+          buildkite_build_url: ${{ steps.build.outputs.url }}
+          ignore_build_states: blocked,canceled,skipped,not_run
+          ignore_job_states: timed_out
+          output_path: artifacts/Buildkite
+```
