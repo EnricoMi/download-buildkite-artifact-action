@@ -60,7 +60,7 @@ The action provides the following outputs:
 |output        |description                      |
 |--------------|---------------------------------|
 |`build-number`|The number of the Buildkite build|
-|`build-state`|The state of the Buildkite build  |
+|`build-state`|The state of the Buildkite build: `passed`, `failed`, `blocked`, `canceled`, `skipped`, `not_run` |
 |`download-state`|The outcome of downloading artifacts: `skipped`, `success`, `failure`|
 |`download-paths`|The paths of the downloaded artifacts as a Json array of strings|
 |`download-files`|The number of downloaded files|
