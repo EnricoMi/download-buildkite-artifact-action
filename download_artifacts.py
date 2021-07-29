@@ -82,20 +82,24 @@ def get_build_artifacts(buildkite: Buildkite, org: str, pipeline: str, build_num
 
 def make_path_safe(string: str) -> str:
     safe_characters = "".join(c if c.isalnum() or c in ['-', '_'] else '-' for c in string).strip()
-    reduced = safe_characters[:75]
+    reduced = safe_characters[:150]
     for pattern, repl in [('-+', '-'), ('^-+', ''), ('-+$', '')]:
         reduced = re.sub(pattern, repl, reduced)
     return reduced
 
 
-def make_dict_path_safe(mapping: Dict[str, str]) -> Dict[str, str]:
+def make_dict_path_safe(job_names: Dict[str, str], job_runs: Dict[str, int]) -> Dict[str, str]:
     counts = Counter()
     safe_dict = dict()
-    for id, name in mapping.items():
+    for id, name in job_names.items():
+        if id in job_runs:
+            name = f'{name} run {job_runs[id]}'
         safe_name = make_path_safe(name)
         counts[safe_name] += 1
         count = counts[safe_name]
-        safe_dict[id] = safe_name if count == 1 else '{}_{}'.format(safe_name, count)
+        if count > 1:
+            safe_name = f'{safe_name}_{count}'
+        safe_dict[id] = safe_name
     return safe_dict
 
 
@@ -299,7 +303,13 @@ def main(github_api_url: str, github_token: str, repo: str,
         job_names = dict([(job.get('id'), job.get('name'))
                           for job in build.get('jobs', [])
                           if 'name' in job])
-        path_safe_job_names = make_dict_path_safe(job_names)
+
+        # get job-id -> job run from build (the run attempt number)
+        job_runs = dict([(job.get('id'),
+                          job.get('retries_count')+1 if job.get('retries_count') is not None else 1)
+                         for job in build.get('jobs', [])])
+
+        path_safe_job_names = make_dict_path_safe(job_names, job_runs)
 
         # get job-id -> state mapping from build
         job_states = dict([(job.get('id'), job.get('state'))
