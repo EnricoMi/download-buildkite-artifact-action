@@ -22,6 +22,34 @@ You can add this action to your GitHub workflow and configure it as follows:
     output_path: artifacts
 ```
 
+## Trigger a build and download its artifacts
+
+You can trigger a Buildkite build with the [EnricoMi/trigger-pipeline-action](https://github.com/EnricoMi/trigger-pipeline-action) action
+and then download the artifacts from that build:
+
+
+```yaml
+steps:
+- name: Trigger Buildkite Pipeline
+  id: build
+  uses: EnricoMi/trigger-pipeline-action@master
+  env:
+    PIPELINE: "<org-slug>/<pipeline-slug>"
+    BUILDKITE_API_ACCESS_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
+
+- name: Download Buildkite Artifacts
+  uses: EnricoMi/download-buildkite-artifact-action@v1
+  with:
+    buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
+    buildkite_build_url: ${{ steps.build.outputs.url }}
+    ignore_build_states: blocked,canceled,skipped,not_run
+    output_path: artifacts
+```
+
+Note: The [EnricoMi/trigger-pipeline-action](https://github.com/EnricoMi/trigger-pipeline-action) action is a fork of the
+official [Buildkite/trigger-pipeline-action](https://github.com/buildkite/trigger-pipeline-action) action, which does not
+support the required feature to allow the above.
+
 ## Using pre-build Docker images
 
 You can use a pre-built docker image from [GitHub Container Registry](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry) (Beta).
