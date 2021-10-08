@@ -147,9 +147,9 @@ class Downloader:
                 downloded_bytes.append(len(artifact))
 
                 return local_path
-            except HTTPError as e:
+            except Exception as e:
                 logger.debug(f'Downloading artifact {artifact_id} to {local_path} failed.', exc_info=e)
-                if 500 <= e.response.status_code < 600:
+                if not isinstance(e, HTTPError) or 500 <= e.response.status_code < 600:
                     retry_artifact_ids.add(artifact_id)
                 else:
                     failed_artifact_ids.add(artifact_id)

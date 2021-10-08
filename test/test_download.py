@@ -1,7 +1,8 @@
-import tempfile
-import unittest
 from glob import glob
+import tempfile
 from typing import Set, Mapping
+import requests
+import unittest
 
 import mock
 from requests import Response
@@ -50,6 +51,8 @@ class DownloadTest(unittest.TestCase):
 
     http404 = error.__func__(404, 'Not Found')
     http500 = error.__func__(500, 'Internal Server Error')
+    connection_error = requests.exceptions.ConnectionError('Connection aborted.', ConnectionResetError(104, 'Connection reset by peer'))
+    exception = Exception()
 
     def create_buildkite_mock(self,
                               artifact_ids: Set[str],
@@ -134,12 +137,13 @@ class DownloadTest(unittest.TestCase):
 
     def test_download_artifacts_retry(self):
         buildkite = self.create_buildkite_mock(
-            {'id1', 'id2', 'id3', 'id4', 'id5'},
+            {'id1', 'id2', 'id3', 'id4', 'id5', 'id6'},
             {
                 'id2': [self.http500],
                 'id3': [self.http500, self.http500],
-                'id4': [self.http404],
-                'id5': [self.http404]
+                'id4': [self.exception, self.connection_error],
+                'id5': [self.http404],
+                'id6': [self.http404]
             }
         )
         artifacts = [
@@ -149,10 +153,12 @@ class DownloadTest(unittest.TestCase):
             {'id': 'id2', 'job_id': 'jid2', 'path': 'path2', 'state': 'finished'},
             # this fails twice, succeeds third try
             {'id': 'id3', 'job_id': 'jid3', 'path': 'path3', 'state': 'finished'},
+            # this fails twice, succeeds third try
+            {'id': 'id4', 'job_id': 'jid4', 'path': 'path4', 'state': 'finished'},
             # this fails once with 404, but it is in new state so gets retried as well
-            {'id': 'id4', 'job_id': 'jid4', 'path': 'path4', 'state': 'new'},
+            {'id': 'id5', 'job_id': 'jid5', 'path': 'path5', 'state': 'new'},
             # this fails once with 404, but it is in finished state so it is not retried
-            {'id': 'id5', 'job_id': 'jid5', 'path': 'path5', 'state': 'finished'},
+            {'id': 'id6', 'job_id': 'jid6', 'path': 'path6', 'state': 'finished'},
         ]
         job_names = {artifact['id']: f'file-{artifact["id"]}' for artifact in artifacts}
 
@@ -166,19 +172,22 @@ class DownloadTest(unittest.TestCase):
             )
 
             self.assertEqual(
-                [mock.call.info('Downloading 5 artifacts from build 12345.'),
+                [mock.call.info('Downloading 6 artifacts from build 12345.'),
                  mock.call.debug(f'Writing 3 bytes to {path}/jid1/path1.'),
                  mock.call.debug(f'Downloading artifact id2 to {path}/jid2/path2 failed.', exc_info=self.http500),
                  mock.call.debug(f'Downloading artifact id3 to {path}/jid3/path3 failed.', exc_info=self.http500),
-                 mock.call.debug(f'Downloading artifact id4 to {path}/jid4/path4 failed.', exc_info=self.http404),
+                 mock.call.debug(f'Downloading artifact id4 to {path}/jid4/path4 failed.', exc_info=self.connection_error),
                  mock.call.debug(f'Downloading artifact id5 to {path}/jid5/path5 failed.', exc_info=self.http404),
-                 mock.call.info('Download of 3 artifacts failed, retrying in 5 seconds.'),
+                 mock.call.debug(f'Downloading artifact id6 to {path}/jid6/path6 failed.', exc_info=self.http404),
+                 mock.call.info('Download of 4 artifacts failed, retrying in 5 seconds.'),
                  mock.call.debug(f'Writing 3 bytes to {path}/jid2/path2.'),
                  mock.call.debug(f'Downloading artifact id3 to {path}/jid3/path3 failed.', exc_info=self.http500),
-                 mock.call.debug(f'Writing 3 bytes to {path}/jid4/path4.'),
-                 mock.call.info('Download of 1 artifact failed, retrying in 20 seconds.'),
+                 mock.call.debug(f'Downloading artifact id4 to {path}/jid4/path4 failed.', exc_info=self.exception),
+                 mock.call.debug(f'Writing 3 bytes to {path}/jid5/path5.'),
+                 mock.call.info('Download of 2 artifacts failed, retrying in 20 seconds.'),
                  mock.call.debug(f'Writing 3 bytes to {path}/jid3/path3.'),
-                 mock.call.info('Downloaded 4 artifacts and 12 Bytes, 1 artifact failed.')],
+                 mock.call.debug(f'Writing 3 bytes to {path}/jid4/path4.'),
+                 mock.call.info('Downloaded 5 artifacts and 15 Bytes, 1 artifact failed.')],
                 logger.mock_calls
             )
 
@@ -188,10 +197,13 @@ class DownloadTest(unittest.TestCase):
                  mock.call(self.org, self.pipeline, self.build_number, 'jid3', 'id3'),
                  mock.call(self.org, self.pipeline, self.build_number, 'jid4', 'id4'),
                  mock.call(self.org, self.pipeline, self.build_number, 'jid5', 'id5'),
+                 mock.call(self.org, self.pipeline, self.build_number, 'jid6', 'id6'),
                  mock.call(self.org, self.pipeline, self.build_number, 'jid2', 'id2'),
                  mock.call(self.org, self.pipeline, self.build_number, 'jid3', 'id3'),
                  mock.call(self.org, self.pipeline, self.build_number, 'jid4', 'id4'),
-                 mock.call(self.org, self.pipeline, self.build_number, 'jid3', 'id3')],
+                 mock.call(self.org, self.pipeline, self.build_number, 'jid5', 'id5'),
+                 mock.call(self.org, self.pipeline, self.build_number, 'jid3', 'id3'),
+                 mock.call(self.org, self.pipeline, self.build_number, 'jid4', 'id4')],
                 buildkite.artifacts.return_value.download_artifact.mock_calls
             )
 
@@ -201,16 +213,17 @@ class DownloadTest(unittest.TestCase):
                  '/jid2', '/jid2/path2',
                  '/jid3', '/jid3/path3',
                  '/jid4', '/jid4/path4',
-                 '/jid5'],
+                 '/jid5', '/jid5/path5',
+                 '/jid6'],
                 sorted([file[file.startswith(path) and len(path):]
                         for file in glob(os.path.join(path, '**'), recursive=True)])
             )
 
             self.assertEqual([mock.call(5), mock.call(20)], time.mock_calls)
-            self.assertEqual(['/jid1/path1', '/jid2/path2', '/jid4/path4', '/jid3/path3'],
+            self.assertEqual(['/jid1/path1', '/jid2/path2', '/jid5/path5', '/jid3/path3', '/jid4/path4'],
                              [downloaded_path[downloaded_path.startswith(path) and len(path):]
                               for downloaded_path in downloaded_paths])
-            self.assertEqual({'id5'}, failed_ids)
+            self.assertEqual({'id6'}, failed_ids)
 
     def test_download_artifacts_retry_exceeds(self):
         buildkite = self.create_buildkite_mock(
