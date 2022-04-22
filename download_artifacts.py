@@ -271,10 +271,19 @@ def main(github_api_url: str, github_token: str, repo: str,
         logger.info('Waiting for build {} to finish.'.format(build_number))
 
         # wait until the Buildkite build terminates
+        build = None
         last_log = 0
         last_state = None
         while True:
-            build = get_build(buildkite, org, pipeline, build_number)
+            try:
+                build = get_build(buildkite, org, pipeline, build_number)
+            except Exception as e:
+                if not isinstance(e, HTTPError) or 500 <= e.response.status_code < 600:
+                    logger.info(f'Getting build {build_number} failed, retrying in {POLL_SLEEP}s.', exc_info=e)
+                    time.sleep(POLL_SLEEP)
+                    continue
+                raise
+
             state = build['state']
             if state != last_state:
                 logger.info('Build is in ''{}'' state.'.format(state))
