@@ -58,7 +58,6 @@ This way, the action is not build for every run of your workflow, and you are gu
 - name: Buildkite Artifacts
   uses: docker://ghcr.io/enricomi/download-buildkite-artifact-action:v1
   with:
-    github_token: ${{ github.token }}
     buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
     output_path: artifacts
 ```

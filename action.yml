@@ -5,7 +5,7 @@ inputs:
   github_token:
     description: 'GitHub API Access Token'
     default: ${{ github.token }}
-    required: true
+    required: false
   buildkite_token:
     description: 'Buildkite API Access Token'
     required: true
