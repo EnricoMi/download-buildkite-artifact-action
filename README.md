@@ -22,6 +22,21 @@ You can add this action to your GitHub workflow and configure it as follows:
     output_path: artifacts
 ```
 
+It is generally good practice to [restrict permissions for actions in your workflows and jobs](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs) to the required minimum.
+
+These permissions are required by this action:
+```yaml
+permissions:
+  metadata: read
+  contents: read
+  statuses: read
+```
+
+When `buildkite_build_url` is provided, no permissions are needed by this action at all:
+```yaml
+permissions: {}
+```
+
 ## Trigger a build and download its artifacts
 
 You can trigger a Buildkite build with the [EnricoMi/trigger-pipeline-action](https://github.com/EnricoMi/trigger-pipeline-action) action
