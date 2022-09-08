@@ -288,7 +288,7 @@ def main(github_api_url: str, github_token: str, repo: str,
             if state != last_state:
                 logger.info('Build is in ''{}'' state.'.format(state))
                 last_state = state
-            if state not in ['running', 'scheduled', 'canceling']:
+            if state not in ['scheduled', 'running', 'canceling', 'failing']:
                 break
             if time.time() - last_log >= LOG_EVERY_SECONDS:
                 logger.debug('{} for build {} to finish.'.format(
