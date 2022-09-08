@@ -41,7 +41,7 @@ outputs:
     description: 'The number of downloaded files'
 runs:
   using: 'docker'
-  image: 'docker://ghcr.io/enricomi/download-buildkite-artifact-action:v1.13'
+  image: 'docker://ghcr.io/enricomi/download-buildkite-artifact-action:v1.14'
 branding:
   icon: 'download-cloud'
   color: 'green'
