@@ -29,6 +29,8 @@ from pybuildkite.buildkite import Buildkite
 from requests.exceptions import HTTPError
 from urllib3.util.retry import Retry
 
+from github_action import GithubAction
+
 logger = logging.getLogger('download-buildkite-artifact')
 
 INITIAL_DELAY = 5  # action initially delays accessing GitHub API for this number of seconds
@@ -109,7 +111,8 @@ class Downloader:
 
     def download_artifacts(self, buildkite: Buildkite,
                            org: str, pipeline: str, build_number: int, artifacts: List[Dict],
-                           path_safe_job_names: Dict[str, str], path: str) -> (List[str], List[str]):
+                           path_safe_job_names: Dict[str, str], path: str,
+                           ga: GithubAction) -> (List[str], List[str]):
 
         # download only the new and finished artifacts
         # sometimes artifacts are stuck in new state but can be downloaded just fine
@@ -212,7 +215,7 @@ class Downloader:
                 ))
                 time.sleep(wait.seconds)
             elif artifacts:
-                logger.warning('Download of {} artifact{} failed, giving up.'.format(
+                ga.warning('Download of {} artifact{} failed, giving up.'.format(
                     len(artifacts),
                     '' if len(artifacts) == 1 else 's'
                 ))
@@ -237,7 +240,8 @@ class Downloader:
 def main(github_api_url: str, github_token: str, repo: str,
          buildkite: Buildkite, buildkite_url: str,
          ignore_build_states: List[str], ignore_job_states: List[str],
-         commit: str, output_path: str) -> bool:
+         commit: str, output_path: str,
+         ga: GithubAction) -> bool:
 
     if buildkite_url is None:
         # get the Buildkite url from github
@@ -251,7 +255,7 @@ def main(github_api_url: str, github_token: str, repo: str,
                 break
 
             if time.time() - start >= WAIT_ON_GITHUB_CHECK:
-                logger.warning('Waited {} for a BuildKite check to appear on commit {}, giving up.'.format(
+                ga.warning('Waited {} for a BuildKite check to appear on commit {}, giving up.'.format(
                     humanize.naturaldelta(timedelta(seconds=WAIT_ON_GITHUB_CHECK)), commit
                 ))
                 return False
@@ -267,7 +271,7 @@ def main(github_api_url: str, github_token: str, repo: str,
     # downloads only the first non-skipped build
     for url in buildkite_builds:
         org, pipeline, build_number = parse_buildkite_url(url)
-        print('::set-output name=build-number::{}'.format(build_number))
+        ga.add_to_output('build-number', str(build_number))
         logger.info('Waiting for build {} to finish.'.format(build_number))
 
         # wait until the Buildkite build terminates
@@ -300,12 +304,12 @@ def main(github_api_url: str, github_token: str, repo: str,
 
         # set build state output
         state = build['state']
-        print('::set-output name=build-state::{}'.format(state))
+        ga.add_to_output('build-state', state)
         if state in ignore_build_states:
             logger.info('Ignoring {} build.'.format(state))
-            print('::set-output name=download-state::skipped'.format(state))
-            print('::set-output name=download-paths::[]')
-            print('::set-output name=download-files::0')
+            ga.add_to_output('download-state', 'skipped')
+            ga.add_to_output('download-paths', '[]')
+            ga.add_to_output('download-files', '0')
             continue
 
         # get a job-id -> name mapping from build
@@ -356,13 +360,13 @@ def main(github_api_url: str, github_token: str, repo: str,
         )
 
         # indicate success or failure as output
-        print('::set-output name=download-state::{}'.format('success' if len(failed_ids) == 0 else 'failure'))
+        ga.add_to_output('download-state', 'success' if len(failed_ids) == 0 else 'failure')
 
         # provide downloaded paths
-        print('::set-output name=download-paths::{}'.format(downloaded_paths))
+        ga.add_to_output('download-paths', str(downloaded_paths))
 
         # provide downloaded files
-        print('::set-output name=download-files::{}'.format(len(downloaded_paths)))
+        ga.add_to_output('download-files', str(len(downloaded_paths)))
 
         return len(failed_ids) == 0
 
@@ -419,8 +423,10 @@ if __name__ == "__main__":
     buildkite = Buildkite()
     buildkite.set_access_token(buildkite_token)
 
+    ga = GithubAction()
+
     if not main(github_api_url, github_token, github_repo,
                 buildkite, buildkite_url,
                 ignore_build_states, ignore_job_states,
-                commit, output_path):
+                commit, output_path, ga):
         sys.exit(1)
