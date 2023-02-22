@@ -1,4 +1,4 @@
-FROM python:3.6-slim
+FROM python:3.8-slim
 
 LABEL repository="https://github.com/EnricoMi/download-buildkite-artifact-action"
 LABEL homepage="https://github.com/EnricoMi/download-buildkite-artifact-action"
