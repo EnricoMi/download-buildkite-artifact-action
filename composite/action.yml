@@ -86,7 +86,8 @@ runs:
       id: download
       run: |
         echo '##[group]Download artifacts'
-        python3 $GITHUB_ACTION_PATH/../download_artifacts.py
+        cd $GITHUB_ACTION_PATH/..
+        PYTHONPATH=. python3 download_artifacts.py
         echo '##[endgroup]'
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
