@@ -158,7 +158,7 @@ class Downloader:
 
         def get_progress_timer():
             timer = Timer(progress_interval, log_progress)
-            timer.setDaemon(daemonic=True)
+            timer.daemon = True
             timer.start()
             return timer
 
