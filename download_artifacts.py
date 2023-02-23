@@ -355,7 +355,7 @@ def main(github_api_url: str, github_token: str, repo: str,
 
         # download the Buildkite artifacts
         downloaded_paths, failed_ids = Downloader().download_artifacts(
-            buildkite, org, pipeline, build_number, artifacts, path_safe_job_names, output_path
+            buildkite, org, pipeline, build_number, artifacts, path_safe_job_names, output_path, ga
         )
 
         # indicate success or failure as output
