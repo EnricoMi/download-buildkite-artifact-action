@@ -38,7 +38,7 @@ and ![Windows](https://badgen.net/badge/icon/Windows?icon=windows&label) (e.g. `
 ```
 
 ### Trigger a build and download its artifacts
-You can trigger a Buildkite build with the [EnricoMi/trigger-pipeline-action](https://github.com/EnricoMi/trigger-pipeline-action) action
+You can trigger a Buildkite build with the [buildkite/trigger-pipeline-action](https://github.com/buildkite/trigger-pipeline-action) action
 and then download the artifacts from that build:
 
 ```yaml
