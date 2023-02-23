@@ -49,9 +49,46 @@ jobs:
           name: Unit Test Results
           path: test-results/*.xml
 
+  config-deploy:
+    name: Configure Deployment
+    needs: build-and-test
+    # do not build or deploy on forked repositories
+    if: github.repository_owner == 'EnricoMi'
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.action.outputs.image }}
+      image-exists: ${{ steps.image.outputs.exists }}
+      image-version: ${{ steps.action.outputs.version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Extract action image and version
+        # we deploy from a specific commit on master (the one that mentions a new version the first time)
+        # so we need to tell docker/metadata-action to extract docker tags from that version
+        id: action
+        run: |
+          image=$(grep -A 10 "^runs:" action.yml | grep -E "^\s+image:\s" | sed -E -e "s/^\s+image:\s*'//" -e "s/docker:\/\///" -e "s/'\s*$//")
+          version=$(cut -d : -f 2 <<< "$image")
+          echo "image=$image" >>$GITHUB_OUTPUT
+          echo "version=$version" >>$GITHUB_OUTPUT
+        shell: bash
+
+      - name: Check action image existence
+        id: image
+        env:
+          DOCKER_CLI_EXPERIMENTAL: enabled
+        run: |
+          if docker manifest inspect '${{ steps.action.outputs.image }}'
+          then
+            echo "exists=true" >>$GITHUB_OUTPUT
+          fi
+        shell: bash
+
   deploy:
     name: Deploy to GitHub
-    needs: build-and-test
+    needs: [build-and-test, config-deploy]
 
     if: github.repository_owner == 'EnricoMi'
 
@@ -65,11 +102,15 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: ghcr.io/EnricoMi/download-buildkite-artifact-action
+          flavor: |
+            latest=true
+            prefix=v
           tags: |
             type=sha
-            type=match,pattern=^(v\d+),group=1
-            type=match,pattern=^(v\d+.\d+),group=1
-            type=raw,value=latest,enable=${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '.') }}
+            type=ref,event=tag
+            type=semver,pattern={{major}},value=${{ needs.config-deploy.outputs.image-version }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.config-deploy.outputs.image-version }}
+            type=semver,pattern={{version}},value=${{ needs.config-deploy.outputs.image-version }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
@@ -87,6 +128,12 @@ jobs:
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
           pull: true
-          # only deploy pushed version tags (no major versions), but not on forked repositories
-          push: ${{ github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '.') }}
-
+          # deploy image actions from commits pushed to master and
+          # deploy Dockerfile actions from pushed version tags (no major versions)
+          push: |
+            ${{
+              github.event_name == 'push' && (
+                needs.config-deploy.outputs.image != 'Dockerfile' && startsWith(github.ref, 'refs/heads/master') && needs.config-deploy.outputs.image-exists != 'true' ||
+                needs.config-deploy.outputs.image == 'Dockerfile' && startsWith(github.ref, 'refs/tags/v') && contains(github.ref, '.')
+              )
+            }}
