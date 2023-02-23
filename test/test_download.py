@@ -97,8 +97,9 @@ class DownloadTest(unittest.TestCase):
                 mock.patch('download_artifacts.logger') as logger, \
                 mock.patch('download_artifacts.time.sleep') as time:
 
+            ga = mock.MagicMock()
             downloaded_paths, failed_ids = downloader.download_artifacts(
-                buildkite, self.org, self.pipeline, self.build_number, artifacts, job_names, path
+                buildkite, self.org, self.pipeline, self.build_number, artifacts, job_names, path, ga
             )
 
             self.assertEqual(
@@ -110,6 +111,7 @@ class DownloadTest(unittest.TestCase):
                  mock.call.info('Downloaded 3 artifacts and 9 Bytes, 1 artifact failed.')],
                 logger.mock_calls
             )
+            ga.warning.assert_not_called()
 
             self.assertEqual(
                 [mock.call(self.org, self.pipeline, self.build_number, 'jid2', 'id2'),
@@ -167,8 +169,9 @@ class DownloadTest(unittest.TestCase):
                 mock.patch('download_artifacts.logger') as logger, \
                 mock.patch('download_artifacts.time.sleep') as time:
 
+            ga = mock.MagicMock()
             downloaded_paths, failed_ids = downloader.download_artifacts(
-                buildkite, self.org, self.pipeline, self.build_number, artifacts, job_names, path
+                buildkite, self.org, self.pipeline, self.build_number, artifacts, job_names, path, ga
             )
 
             self.assertEqual(
@@ -190,6 +193,7 @@ class DownloadTest(unittest.TestCase):
                  mock.call.info('Downloaded 5 artifacts and 15 Bytes, 1 artifact failed.')],
                 logger.mock_calls
             )
+            ga.warning.assert_not_called()
 
             self.assertEqual(
                 [mock.call(self.org, self.pipeline, self.build_number, 'jid1', 'id1'),
@@ -240,7 +244,10 @@ class DownloadTest(unittest.TestCase):
                 mock.patch('download_artifacts.logger') as logger, \
                 mock.patch('download_artifacts.time.sleep') as time:
 
-            downloaded_paths, failed_ids = downloader.download_artifacts(buildkite, self.org, self.pipeline, self.build_number, artifacts, job_names, path)
+            ga = mock.MagicMock()
+            downloaded_paths, failed_ids = downloader.download_artifacts(
+                buildkite, self.org, self.pipeline, self.build_number, artifacts, job_names, path, ga
+            )
 
             self.assertEqual(
                 [mock.call.info('Downloading 2 artifacts from build 12345.'),
@@ -258,13 +265,13 @@ class DownloadTest(unittest.TestCase):
                  mock.call.info('Download of 2 artifacts failed, retrying in 5 minutes.'),
                  mock.call.debug(f'Downloading artifact id1 to {path}/jid1/path1 failed.', exc_info=self.http500),
                  mock.call.debug(f'Downloading artifact id2 to {path}/jid2/path2 failed.', exc_info=self.http404),
-                 mock.call.warning('Download of 2 artifacts failed, giving up.'),
                  mock.call.debug('Failed artifacts:'),
                  mock.call.debug({'id': 'id1', 'job_id': 'jid1', 'path': 'path1', 'state': 'finished'}),
                  mock.call.debug({'id': 'id2', 'job_id': 'jid2', 'path': 'path2', 'state': 'new'}),
                  mock.call.info('Downloaded 0 artifacts and 0 Bytes, 2 artifacts failed.')],
                 logger.mock_calls
             )
+            ga.warning.assert_called_once_with('Download of 2 artifacts failed, giving up.')
 
             self.assertEqual(
                 [mock.call(self.org, self.pipeline, self.build_number, 'jid1', 'id1'),

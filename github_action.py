@@ -5,7 +5,7 @@ import traceback
 from io import TextIOWrapper
 from typing import Mapping, Any, Optional
 
-from download_artifacts import logger
+logger = logging.getLogger('download-buildkite-artifact')
 
 
 class GithubAction:

@@ -13,7 +13,6 @@
 #  limitations under the License.
 
 import json
-import logging
 import os
 import re
 import sys
@@ -29,9 +28,8 @@ from pybuildkite.buildkite import Buildkite
 from requests.exceptions import HTTPError
 from urllib3.util.retry import Retry
 
-from github_action import GithubAction
+from github_action import GithubAction, logger
 
-logger = logging.getLogger('download-buildkite-artifact')
 
 INITIAL_DELAY = 5  # action initially delays accessing GitHub API for this number of seconds
 POLL_SLEEP = 30    # action polls GitHub API and Buildkite API every this number of seconds
