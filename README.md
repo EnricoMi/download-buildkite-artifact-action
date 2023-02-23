@@ -45,7 +45,7 @@ and then download the artifacts from that build:
 steps:
 - name: Trigger Buildkite Pipeline
   id: build
-  uses: EnricoMi/trigger-pipeline-action@master
+  uses: buildkite/trigger-pipeline-action@v1.3.1
   env:
     PIPELINE: "<org-slug>/<pipeline-slug>"
     BUILDKITE_API_ACCESS_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
@@ -59,10 +59,6 @@ steps:
     ignore_job_states: timed_out,failed
     output_path: artifacts
 ```
-
-Note: The [EnricoMi/trigger-pipeline-action](https://github.com/EnricoMi/trigger-pipeline-action) action is a fork of the
-official [Buildkite/trigger-pipeline-action](https://github.com/buildkite/trigger-pipeline-action) action, which does not
-support the required feature to allow the above.
 
 ## Permissions
 It is generally good practice to [restrict permissions for actions in your workflows and jobs](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs) to the required minimum.
