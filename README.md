@@ -1,5 +1,9 @@
 # GitHub Action to download Buildkite Artifacts
 
+![Ubuntu Linux](https://badgen.net/badge/icon/Ubuntu?icon=terminal&label)
+![macOS](https://badgen.net/badge/icon/macOS?icon=apple&label)
+![Windows](https://badgen.net/badge/icon/Windows?icon=windows&label)
+
 This [GitHub Action](https://github.com/actions) downloads artifacts from
 a [Buildkite](https://buildkite.com/) pipeline that builds the respective commit.
 
@@ -10,9 +14,9 @@ which looks like this:
 ![Github commit status set by Buildkite](github-buildkite-check.png)
 
 After termination of the Buildkite build, the action downloads finished artifacts into your GitHub workflow
-where you can use them by other steps.
+where you can use them in other steps and jobs.
 
-You can add this action to your GitHub workflow and configure it as follows:
+You can add this action to your GitHub workflow for ![Ubuntu Linux](https://badgen.net/badge/icon/Ubuntu?icon=terminal&label) (e.g. `runs-on: ubuntu-latest`) runners:
 
 ```yaml
 - name: Buildkite Artifacts
@@ -22,32 +26,26 @@ You can add this action to your GitHub workflow and configure it as follows:
     output_path: artifacts
 ```
 
-It is generally good practice to [restrict permissions for actions in your workflows and jobs](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs) to the required minimum.
+Use this for ![macOS](https://badgen.net/badge/icon/macOS?icon=apple&label) (e.g. `runs-on: macos-latest`)
+and ![Windows](https://badgen.net/badge/icon/Windows?icon=windows&label) (e.g. `runs-on: windows-latest`) runners:
 
-These permissions are required by this action:
 ```yaml
-permissions:
-  metadata: read
-  contents: read
-  statuses: read
+- name: Buildkite Artifacts
+  uses: EnricoMi/download-buildkite-artifact-action/composite@v1
+  with:
+    buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
+    output_path: artifacts
 ```
 
-When `buildkite_build_url` is provided, no permissions are needed by this action at all:
-```yaml
-permissions: {}
-```
-
-## Trigger a build and download its artifacts
-
-You can trigger a Buildkite build with the [EnricoMi/trigger-pipeline-action](https://github.com/EnricoMi/trigger-pipeline-action) action
+### Trigger a build and download its artifacts
+You can trigger a Buildkite build with the [buildkite/trigger-pipeline-action](https://github.com/buildkite/trigger-pipeline-action) action
 and then download the artifacts from that build:
-
 
 ```yaml
 steps:
 - name: Trigger Buildkite Pipeline
   id: build
-  uses: EnricoMi/trigger-pipeline-action@master
+  uses: buildkite/trigger-pipeline-action@v1.3.1
   env:
     PIPELINE: "<org-slug>/<pipeline-slug>"
     BUILDKITE_API_ACCESS_TOKEN: ${{ secrets.BUILDKITE_TOKEN }}
@@ -58,27 +56,28 @@ steps:
     buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
     buildkite_build_url: ${{ steps.build.outputs.url }}
     ignore_build_states: blocked,canceled,skipped,not_run
+    ignore_job_states: timed_out,failed
     output_path: artifacts
 ```
 
-Note: The [EnricoMi/trigger-pipeline-action](https://github.com/EnricoMi/trigger-pipeline-action) action is a fork of the
-official [Buildkite/trigger-pipeline-action](https://github.com/buildkite/trigger-pipeline-action) action, which does not
-support the required feature to allow the above.
+## Permissions
+It is generally good practice to [restrict permissions for actions in your workflows and jobs](https://docs.github.com/en/actions/using-jobs/assigning-permissions-to-jobs) to the required minimum.
 
-## Using pre-build Docker images
-
-You can use a pre-built docker image from [GitHub Container Registry](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry) (Beta).
-This way, the action is not build for every run of your workflow, and you are guaranteed to get the exact same action build:
+When `buildkite_build_url` is provided, no permissions are needed by this action at all:
 ```yaml
-- name: Buildkite Artifacts
-  uses: docker://ghcr.io/enricomi/download-buildkite-artifact-action:v1
-  with:
-    buildkite_token: ${{ secrets.BUILDKITE_TOKEN }}
-    output_path: artifacts
+permissions: {}
 ```
 
-**Note:** GitHub Container Registry is currently in [beta phase](https://docs.github.com/en/free-pro-team@latest/packages/getting-started-with-github-container-registry/about-github-container-registry).
-This action may abandon GitHub Container Registry support when GitHub changes its conditions.
+When `buildkite_build_url` is **not** provided, the action picks up any Buildkite check created by
+[Buildkite integration with Github](https://buildkite.com/docs/integrations/github#connecting-buildkite-and-github).
+Then, the following permissions are required:
+```yaml
+permissions:
+  metadata: read
+  contents: read
+  statuses: read
+```
+
 
 ## Configuration
 The `output_path` and `log_level` variables are optional. Their default values are `.` (current directory) and `INFO`, respectively. The Python logging module defines the [available log levels](https://docs.python.org/3/library/logging.html#logging-levels).
@@ -96,7 +95,7 @@ Artifacts are stored under the following path: `{output_path}/{job_name}/{artifa
 
 ![Buildkite artifacts](buildkite-artifact.png)
 
-
+## Outputs
 The action provides the following outputs:
 
 |output        |description                      |
