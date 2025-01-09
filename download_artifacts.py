@@ -33,7 +33,6 @@ from github_action import GithubAction, logger
 
 
 INITIAL_DELAY = 5  # action initially delays accessing GitHub API for this number of seconds
-POLL_SLEEP = 30    # action polls GitHub API and Buildkite API every this number of seconds
 WAIT_ON_GITHUB_CHECK = 300  # seconds the action waits for a Buildkite check to appear on the commit
 LOG_EVERY_SECONDS = 60*60   # some logging only occurs every X seconds
 DEFAULT_GITHUB_BASE_URL = "https://api.github.com"
@@ -239,7 +238,7 @@ class Downloader:
 def main(github_api_url: str, github_token: str, repo: str,
          buildkite: Buildkite, buildkite_url: str,
          ignore_build_states: List[str], ignore_job_states: List[str],
-         commit: str, output_path: str,
+         commit: str, output_path: str, poll_interval: int,
          ga: GithubAction) -> bool:
 
     if buildkite_url is None:
@@ -259,8 +258,8 @@ def main(github_api_url: str, github_token: str, repo: str,
                 ))
                 return False
 
-            logger.debug('Waiting {}s before contacting GitHub API again'.format(POLL_SLEEP))
-            time.sleep(POLL_SLEEP)
+            logger.debug('Waiting {}s before contacting GitHub API again'.format(poll_interval))
+            time.sleep(poll_interval)
 
         if not logger.isEnabledFor(logging.DEBUG):
             logger.info('Found {} status{}.'.format(len(buildkite_builds), '' if len(buildkite_builds) == 1 else 'es'))
@@ -282,8 +281,8 @@ def main(github_api_url: str, github_token: str, repo: str,
                 build = get_build(buildkite, org, pipeline, build_number)
             except Exception as e:
                 if not isinstance(e, HTTPError) or 500 <= e.response.status_code < 600:
-                    logger.info(f'Getting build {build_number} failed, retrying in {POLL_SLEEP}s.', exc_info=e)
-                    time.sleep(POLL_SLEEP)
+                    logger.info(f'Getting build {build_number} failed, retrying in {poll_interval}s.', exc_info=e)
+                    time.sleep(poll_interval)
                     continue
                 raise
 
@@ -299,7 +298,7 @@ def main(github_api_url: str, github_token: str, repo: str,
                     build_number
                 ))
                 last_log = time.time()
-            time.sleep(POLL_SLEEP)
+            time.sleep(poll_interval)
 
         # set build state output
         state = build['state']
@@ -422,10 +421,13 @@ if __name__ == "__main__":
     buildkite = Buildkite()
     buildkite.set_access_token(buildkite_token)
 
+    poll_interval = get_var('POLL_INTERVAL')
+    check_var(poll_interval, 'POLL_INTERVAL', 'Seconds between API polls')
+
     ga = GithubAction()
 
     if not main(github_api_url, github_token, github_repo,
                 buildkite, buildkite_url,
                 ignore_build_states, ignore_job_states,
-                commit, output_path, ga):
+                commit, output_path, poll_interval, ga):
         sys.exit(1)
