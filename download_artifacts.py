@@ -238,7 +238,7 @@ class Downloader:
 def main(github_api_url: str, github_token: str, repo: str,
          buildkite: Buildkite, buildkite_url: str,
          ignore_build_states: List[str], ignore_job_states: List[str],
-         commit: str, output_path: str, poll_sleep: int,
+         commit: str, output_path: str, poll_interval: int,
          ga: GithubAction) -> bool:
 
     if buildkite_url is None:
@@ -258,8 +258,8 @@ def main(github_api_url: str, github_token: str, repo: str,
                 ))
                 return False
 
-            logger.debug('Waiting {}s before contacting GitHub API again'.format(poll_sleep))
-            time.sleep(poll_sleep)
+            logger.debug('Waiting {}s before contacting GitHub API again'.format(poll_interval))
+            time.sleep(poll_interval)
 
         if not logger.isEnabledFor(logging.DEBUG):
             logger.info('Found {} status{}.'.format(len(buildkite_builds), '' if len(buildkite_builds) == 1 else 'es'))
@@ -281,8 +281,8 @@ def main(github_api_url: str, github_token: str, repo: str,
                 build = get_build(buildkite, org, pipeline, build_number)
             except Exception as e:
                 if not isinstance(e, HTTPError) or 500 <= e.response.status_code < 600:
-                    logger.info(f'Getting build {build_number} failed, retrying in {poll_sleep}s.', exc_info=e)
-                    time.sleep(poll_sleep)
+                    logger.info(f'Getting build {build_number} failed, retrying in {poll_interval}s.', exc_info=e)
+                    time.sleep(poll_interval)
                     continue
                 raise
 
@@ -298,7 +298,7 @@ def main(github_api_url: str, github_token: str, repo: str,
                     build_number
                 ))
                 last_log = time.time()
-            time.sleep(poll_sleep)
+            time.sleep(poll_interval)
 
         # set build state output
         state = build['state']
@@ -421,13 +421,13 @@ if __name__ == "__main__":
     buildkite = Buildkite()
     buildkite.set_access_token(buildkite_token)
 
-    poll_sleep = get_var('POLL_SLEEP')
-    check_var(poll_sleep, 'POLL_SLEEP', 'Seconds between API polls')
+    poll_interval = get_var('POLL_INTERVAL')
+    check_var(poll_interval, 'POLL_INTERVAL', 'Seconds between API polls')
 
     ga = GithubAction()
 
     if not main(github_api_url, github_token, github_repo,
                 buildkite, buildkite_url,
                 ignore_build_states, ignore_job_states,
-                commit, output_path, poll_sleep, ga):
+                commit, output_path, poll_interval, ga):
         sys.exit(1)
