@@ -28,7 +28,7 @@ inputs:
     description: 'Action logging level'
     required: false
     default: 'INFO'
-  poll_sleep:
+  poll_interval:
     description: 'Delay in seconds between polls to the Github and Buildkite APIs'
     required: false
     default: 30
