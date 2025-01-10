@@ -421,8 +421,11 @@ if __name__ == "__main__":
     buildkite = Buildkite()
     buildkite.set_access_token(buildkite_token)
 
-    poll_interval = get_var('POLL_INTERVAL')
-    check_var(poll_interval, 'POLL_INTERVAL', 'Seconds between API polls')
+    poll_interval_str = get_var('POLL_INTERVAL')
+    check_var(poll_interval_str, 'POLL_INTERVAL', 'Seconds between API polls')
+    if not poll_interval_str.isdigit() or int(poll_interval_str) <= 0:
+        raise RuntimeError('POLL_INTERVAL must be a positive integer: {}'.format(poll_interval_str))
+    poll_interval = int(poll_interval_str)
 
     ga = GithubAction()
 
