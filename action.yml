@@ -24,14 +24,14 @@ inputs:
     description: 'Path were downloaded artifacts are stored'
     required: false
     default: '.'
-  log_level:
-    description: 'Action logging level'
-    required: false
-    default: 'INFO'
   poll_interval:
     description: 'Delay in seconds between polls to the Github and Buildkite APIs'
     required: false
     default: 30
+  log_level:
+    description: 'Action logging level'
+    required: false
+    default: 'INFO'
 outputs:
   build-number:
     description: 'The number of the Buildkite build'
