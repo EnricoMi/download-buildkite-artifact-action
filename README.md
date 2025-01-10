@@ -58,6 +58,7 @@ steps:
     ignore_build_states: blocked,canceled,skipped,not_run
     ignore_job_states: timed_out,failed
     output_path: artifacts
+    poll_interval: 30
 ```
 
 ## Permissions
@@ -80,7 +81,7 @@ permissions:
 
 
 ## Configuration
-The `output_path` and `log_level` variables are optional. Their default values are `.` (current directory) and `INFO`, respectively. The Python logging module defines the [available log levels](https://docs.python.org/3/library/logging.html#logging-levels).
+The `output_path`, `poll_interval`, and `log_level` variables are optional. Their default values are `.` (current directory), `30` (seconds), and `INFO`, respectively. The Python logging module defines the [available log levels](https://docs.python.org/3/library/logging.html#logging-levels).
 
 You have to provide a [Buildkite API Access Token](https://buildkite.com/docs/apis/managing-api-tokens) via `buildkite_token` to be stored in your [GitHub secrets](https://docs.github.com/en/actions/configuring-and-managing-workflows/creating-and-storing-encrypted-secrets).
 This Buildkite token requires `read_artifacts` and `read_builds` scopes:
